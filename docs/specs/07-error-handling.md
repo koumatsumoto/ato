@@ -2,193 +2,136 @@
 
 ## 概要
 
-GitHub API 依存のアプリのため、API 障害・レート制限・認証失敗への対処が重要。
-BFF でエラーを正規化し、SPA では「ユーザーが次に取るべきアクション」を明示する。
+SPA が GitHub API を直接呼び出すため、全てのエラーハンドリングは SPA で行う。
+「ユーザーが次に取るべきアクション」を明示することが方針。
 
 ---
 
 ## 1. エラー分類
 
-### 1.1 BFF レスポンスエラー型
+### 1.1 エラー型
 
 ```typescript
-/** packages/shared に定義 */
-interface ApiError {
-  readonly code: ErrorCode;
-  readonly message: string;
+// apps/spa/src/types/errors.ts
+
+/** 認証エラー */
+class AuthError extends Error {
+  readonly name = "AuthError";
 }
 
-type ErrorCode =
-  | "VALIDATION_ERROR"
-  | "UNAUTHORIZED"
-  | "FORBIDDEN"
-  | "NOT_FOUND"
-  | "RATE_LIMITED"
-  | "UPSTREAM_ERROR"
-  | "REPO_CREATION_FAILED"
-  | "INTERNAL_ERROR";
-```
-
-### 1.2 エラー分類マトリクス
-
-| カテゴリ     | HTTP | ErrorCode              | リトライ可能 | ユーザーアクション   |
-| ------------ | ---- | ---------------------- | ------------ | -------------------- |
-| 入力不正     | 400  | `VALIDATION_ERROR`     | No           | 入力を修正           |
-| 認証切れ     | 401  | `UNAUTHORIZED`         | No           | 再ログイン           |
-| 権限不足     | 403  | `FORBIDDEN`            | No           | リポジトリ権限を確認 |
-| 未存在       | 404  | `NOT_FOUND`            | No           | 一覧に戻る           |
-| レート制限   | 429  | `RATE_LIMITED`         | Yes (待機後) | 待ってから再試行     |
-| GitHub 障害  | 502  | `UPSTREAM_ERROR`       | Yes          | 再試行               |
-| リポ作成失敗 | 503  | `REPO_CREATION_FAILED` | Yes          | 再試行 or 手動作成   |
-| 内部エラー   | 500  | `INTERNAL_ERROR`       | Yes          | 再試行               |
-
----
-
-## 2. BFF エラーマッピング (GitHub API -> BFF)
-
-### 2.1 GitHub API エラーハンドラ
-
-```typescript
-// services/github-api.ts
-function mapGitHubError(
-  status: number,
-  body: unknown,
-): { httpStatus: number; error: ApiError } {
-  switch (status) {
-    case 401:
-      return {
-        httpStatus: 401,
-        error: {
-          code: "UNAUTHORIZED",
-          message: "GitHub authentication failed. Please log in again.",
-        },
-      };
-    case 403:
-      // レート制限と権限不足を区別
-      if (isRateLimited(body)) {
-        return {
-          httpStatus: 429,
-          error: {
-            code: "RATE_LIMITED",
-            message: "GitHub API rate limit reached. Please wait a moment.",
-          },
-        };
-      }
-      return {
-        httpStatus: 403,
-        error: {
-          code: "FORBIDDEN",
-          message: "Insufficient permissions for this repository.",
-        },
-      };
-    case 404:
-      return {
-        httpStatus: 404,
-        error: {
-          code: "NOT_FOUND",
-          message: "The requested item was not found.",
-        },
-      };
-    case 422:
-      return {
-        httpStatus: 400,
-        error: { code: "VALIDATION_ERROR", message: "Invalid request data." },
-      };
-    default:
-      if (status >= 500) {
-        return {
-          httpStatus: 502,
-          error: {
-            code: "UPSTREAM_ERROR",
-            message: "GitHub is temporarily unavailable. Please try again.",
-          },
-        };
-      }
-      return {
-        httpStatus: 500,
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "An unexpected error occurred.",
-        },
-      };
+/** GitHub API エラー */
+class GitHubApiError extends Error {
+  readonly name = "GitHubApiError";
+  constructor(
+    readonly status: number,
+    readonly body: unknown,
+  ) {
+    super(`GitHub API error: ${status}`);
   }
 }
-```
 
-### 2.2 GitHub 401 時のセッション無効化
+/** ネットワークエラー */
+class NetworkError extends Error {
+  readonly name = "NetworkError";
+}
 
-GitHub API が 401 を返した場合、保存している access_token が無効化されている。
-BFF はセッションを削除し、SPA に 401 を返す。
+/** リソース未検出 */
+class NotFoundError extends Error {
+  readonly name = "NotFoundError";
+}
 
-```
-GitHub 401
-  -> BFF: Deno KV からセッション削除
-  -> BFF: 401 UNAUTHORIZED を SPA に返却
-  -> SPA: localStorage クリア、ログイン画面へ
-```
-
----
-
-## 3. BFF レベルレート制限
-
-GitHub API のレート制限とは別に、BFF 自体にもレート制限を設ける。
-Deno KV のカウンターを使用した固定ウィンドウ方式。
-
-### 3.1 制限値
-
-| エンドポイントグループ | 制限          | ウィンドウ |
-| ---------------------- | ------------- | ---------- |
-| `/auth/*`              | 10 リクエスト | 1 分       |
-| `GET /todos*`          | 60 リクエスト | 1 分       |
-| `POST/PATCH /todos*`   | 30 リクエスト | 1 分       |
-
-### 3.2 レスポンスヘッダー
-
-レート制限情報を BFF レスポンスヘッダーで返す。
-
-```
-X-RateLimit-Remaining: 55
-X-RateLimit-Reset: 2026-02-07T10:01:00Z
-```
-
-### 3.3 429 レスポンス
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "RATE_LIMITED",
-    "message": "Too many requests. Please wait before trying again."
-  }
+/** リポジトリ作成エラー */
+class RepoCreationError extends Error {
+  readonly name = "RepoCreationError";
 }
 ```
 
-`Retry-After` ヘッダーも付与。
+### 1.2 GitHub API エラー分類マトリクス
+
+| HTTP | 原因                 | リトライ可能 | ユーザーアクション   |
+| ---- | -------------------- | ------------ | -------------------- |
+| 401  | token 無効/取り消し  | No           | 再ログイン           |
+| 403  | 権限不足             | No           | リポジトリ権限を確認 |
+| 403  | レート制限 (\*)      | Yes (待機後) | 待ってから再試行     |
+| 404  | リソースなし         | No           | 一覧に戻る           |
+| 422  | バリデーションエラー | No           | 入力を修正           |
+| 5xx  | GitHub サービス障害  | Yes          | 再試行               |
+
+(\*) 403 のうちレート制限は `X-RateLimit-Remaining: 0` で判定する。
 
 ---
 
-## 4. GitHub API レート制限の転送
+## 2. SPA エラーハンドリング
 
-BFF は GitHub API のレスポンスから `X-RateLimit-*` ヘッダーを読み取り、BFF レスポンスの `meta` に含める。
+### 2.1 GitHub API エラー処理
 
 ```typescript
+// shared/lib/github-client.ts
+async function githubFetch(
+  path: string,
+  options?: RequestInit,
+): Promise<Response> {
+  const token = localStorage.getItem("ato:token");
+  if (!token) {
+    throw new AuthError("Not authenticated");
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${GITHUB_API}${path}`, {
+      ...options,
+      headers: {
+        ...options?.headers,
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+  } catch {
+    throw new NetworkError(
+      "Unable to connect. Please check your internet connection.",
+    );
+  }
+
+  // 401: token 無効 -> 自動ログアウト
+  if (response.status === 401) {
+    localStorage.removeItem("ato:token");
+    throw new AuthError("Token expired or revoked");
+  }
+
+  return response;
+}
+```
+
+### 2.2 レート制限判定
+
+```typescript
+// shared/lib/rate-limit.ts
+interface RateLimitInfo {
+  readonly remaining: number;
+  readonly resetAt: Date;
+}
+
 function extractRateLimit(headers: Headers): RateLimitInfo {
   return {
     remaining: Number(headers.get("X-RateLimit-Remaining") ?? 0),
-    resetAt: new Date(
-      Number(headers.get("X-RateLimit-Reset") ?? 0) * 1000,
-    ).toISOString(),
+    resetAt: new Date(Number(headers.get("X-RateLimit-Reset") ?? 0) * 1000),
   };
+}
+
+function isRateLimited(response: Response): boolean {
+  return (
+    response.status === 403 &&
+    response.headers.get("X-RateLimit-Remaining") === "0"
+  );
 }
 ```
 
-SPA はこの情報を使い、残りリクエスト数が少ない場合に警告を表示できる。
-
 ---
 
-## 5. SPA エラー表示パターン
+## 3. SPA エラー表示パターン
 
-### 5.1 エラー表示の種類
+### 3.1 エラー表示の種類
 
 | 種類       | 用途                           | 表示位置                 |
 | ---------- | ------------------------------ | ------------------------ |
@@ -197,7 +140,7 @@ SPA はこの情報を使い、残りリクエスト数が少ない場合に警�
 | トースト   | 操作失敗 (完了トグル、保存)    | 画面右下 (自動消去 5 秒) |
 | フルページ | 404、重大エラー                | 画面全体                 |
 
-### 5.2 エラーバナー
+### 3.2 エラーバナー
 
 ```typescript
 function ErrorBanner({ error, onRetry, onDismiss }: ErrorBannerProps) {
@@ -221,39 +164,38 @@ function ErrorBanner({ error, onRetry, onDismiss }: ErrorBannerProps) {
 }
 ```
 
-### 5.3 エラーコード別の SPA 対応
+### 3.3 エラー種別ごとの SPA 対応
 
-| ErrorCode              | 表示方法            | リトライ             | 追加アクション             |
-| ---------------------- | ------------------- | -------------------- | -------------------------- |
-| `VALIDATION_ERROR`     | インライン          | No                   | フィールドをハイライト     |
-| `UNAUTHORIZED`         | なし (リダイレクト) | No                   | ログイン画面へ自動遷移     |
-| `FORBIDDEN`            | バナー              | No                   | 「権限を確認してください」 |
-| `NOT_FOUND`            | フルページ          | No                   | 「一覧に戻る」リンク       |
-| `RATE_LIMITED`         | バナー              | Yes (Retry-After 後) | 待機時間を表示             |
-| `UPSTREAM_ERROR`       | バナー              | Yes                  | 「再試行」ボタン           |
-| `REPO_CREATION_FAILED` | バナー              | Yes                  | 「再試行」ボタン           |
-| `INTERNAL_ERROR`       | バナー              | Yes                  | 「再試行」ボタン           |
+| エラー種別           | 表示方法            | リトライ         | 追加アクション             |
+| -------------------- | ------------------- | ---------------- | -------------------------- |
+| 401 (token 無効)     | なし (リダイレクト) | No               | ログイン画面へ自動遷移     |
+| 403 (権限不足)       | バナー              | No               | 「権限を確認してください」 |
+| 403 (レート制限)     | バナー              | Yes (リセット後) | 待機時間を表示             |
+| 404 (未存在)         | フルページ          | No               | 「一覧に戻る」リンク       |
+| 422 (バリデーション) | インライン          | No               | フィールドをハイライト     |
+| 5xx (GitHub 障害)    | バナー              | Yes              | 「再試行」ボタン           |
+| ネットワークエラー   | バナー              | Yes              | 「再試行」ボタン           |
+| リポジトリ作成失敗   | バナー              | Yes              | 「再試行」ボタン           |
 
-### 5.4 ネットワークエラー (fetch 失敗)
+### 3.4 ネットワークエラー
 
-BFF に到達できない場合 (DNS 解決失敗、タイムアウト等)。
-
-```typescript
-// api-client.ts
-async function fetchWithAuth(path: string, options?: RequestInit): Promise<Response> {
-  try {
-    const response = await fetch(`${BFF_URL}${path}`, { ... });
-    // ...
-  } catch (error) {
-    // TypeError: Failed to fetch (ネットワークエラー)
-    throw new NetworkError("Unable to connect. Please check your internet connection.");
-  }
-}
-```
+GitHub API に到達できない場合 (DNS 解決失敗、タイムアウト等)。
 
 SPA 表示: バナー + 「再試行」ボタン
 
-### 5.5 TanStack Query のエラーハンドリング
+### 3.5 OAuth Proxy エラー
+
+OAuth フロー中のエラーは postMessage で SPA に通知される。
+
+| エラー         | postMessage                          | SPA 対応         |
+| -------------- | ------------------------------------ | ---------------- |
+| パラメータ欠落 | `{ error: "missing_params" }`        | エラーメッセージ |
+| state 不正     | `{ error: "invalid_state" }`         | 再ログイン促し   |
+| token 交換失敗 | `{ error: "token_exchange_failed" }` | 再試行促し       |
+
+---
+
+## 4. TanStack Query のエラーハンドリング
 
 ```typescript
 // providers.tsx
@@ -262,9 +204,10 @@ const queryClient = new QueryClient({
     queries: {
       retry: (failureCount, error) => {
         // 401, 403, 404 はリトライしない
+        if (error instanceof AuthError) return false;
         if (
-          error instanceof ApiClientError &&
-          [401, 403, 404].includes(error.status)
+          error instanceof GitHubApiError &&
+          [401, 403, 404, 422].includes(error.status)
         ) {
           return false;
         }
@@ -281,72 +224,32 @@ const queryClient = new QueryClient({
 
 ---
 
-## 6. 楽観的更新のエラーリカバリ
+## 5. 楽観的更新のエラーリカバリ
 
-### 6.1 TODO 作成失敗
+### 5.1 TODO 作成失敗
 
 ```
 1. 楽観的に一覧に追加 (一時 ID)
-2. API 呼び出し失敗
+2. GitHub API 呼び出し失敗
 3. onError: キャッシュをロールバック (一時 ID のエントリを除去)
 4. トースト: "Failed to create todo. Please try again."
 ```
 
-### 6.2 完了トグル失敗
+### 5.2 完了トグル失敗
 
 ```
 1. 楽観的に一覧から除外
-2. API 呼び出し失敗
+2. GitHub API 呼び出し失敗
 3. onError: キャッシュをロールバック (元のリストに戻す)
 4. トースト: "Failed to update todo. Please try again."
 ```
 
 ---
 
-## 7. グローバルエラーハンドラ (BFF)
+## 6. レート制限管理
 
-```typescript
-// middleware/error-handler.ts
-import type { ErrorHandler } from "hono";
+SPA は GitHub API のレスポンスヘッダーからレート制限情報を読み取る。
 
-const errorHandler: ErrorHandler = (err, c) => {
-  // バリデーションエラー (zod)
-  if (err instanceof ZodError) {
-    return c.json(
-      {
-        success: false,
-        error: { code: "VALIDATION_ERROR", message: formatZodError(err) },
-      },
-      400,
-    );
-  }
-
-  // GitHub API エラー
-  if (err instanceof GitHubApiError) {
-    const mapped = mapGitHubError(err.status, err.body);
-    return c.json({ success: false, error: mapped.error }, mapped.httpStatus);
-  }
-
-  // 認証エラー
-  if (err instanceof AuthError) {
-    return c.json(
-      { success: false, error: { code: "UNAUTHORIZED", message: err.message } },
-      401,
-    );
-  }
-
-  // 未知のエラー (ログに記録、詳細はクライアントに返さない)
-  // NOTE: console.error は本番 BFF でのログ出力用。SPA 側には使用しない
-  console.error("Unhandled error:", err);
-  return c.json(
-    {
-      success: false,
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "An unexpected error occurred.",
-      },
-    },
-    500,
-  );
-};
-```
+- `X-RateLimit-Remaining` < 100 の場合: 画面に警告表示
+- `X-RateLimit-Remaining` = 0 の場合: リセット時刻をカウントダウン表示
+- 429 レスポンスの場合: `Retry-After` ヘッダーの秒数を待機後に再試行

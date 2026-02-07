@@ -2,19 +2,21 @@
 
 ## 概要
 
-GitHub OAuth App を使用した認証。SPA と BFF が別オリジンのため、popup + postMessage パターンを採用する。
+GitHub OAuth App を使用した認証。SPA と OAuth Proxy が別オリジンのため、popup + postMessage パターンを採用する。
+access_token は SPA の localStorage に保存し、SPA から GitHub API を直接呼び出す。
 
 ---
 
 ## 1. OAuth フロー シーケンス図
 
 ```
-SPA (*.github.io)              BFF (*.deno.dev)                 GitHub
+SPA (*.github.io)              OAuth Proxy (CF Workers)         GitHub
      |                              |                              |
      |  (1) window.open             |                              |
      |----> GET /auth/login ------->|                              |
-     |      ?spa_origin=...         |                              |
-     |                              |  (2) state 生成 + Deno KV 保存
+     |                              |                              |
+     |                              |  (2) state 生成              |
+     |                              |  HttpOnly Cookie に保存      |
      |                              |                              |
      |                              |  (3) 302 Redirect            |
      |                              |----> github.com/login/ ----->|
@@ -30,7 +32,7 @@ SPA (*.github.io)              BFF (*.deno.dev)                 GitHub
      |                              |<---- GET /auth/callback -----|
      |                              |      ?code=...&state=...     |
      |                              |                              |
-     |                              |  (5) state 検証 (Deno KV)    |
+     |                              |  (5) Cookie の state 検証     |
      |                              |                              |
      |                              |  (6) code -> token 交換      |
      |                              |----> POST .../access_token ->|
@@ -39,18 +41,11 @@ SPA (*.github.io)              BFF (*.deno.dev)                 GitHub
      |                              |                              |
      |                              |<---- { access_token } -------|
      |                              |                              |
-     |                              |  (7) ユーザー情報取得         |
-     |                              |----> GET /user ------------->|
-     |                              |<---- { login, id, ... } -----|
+     |  (7) HTML + postMessage      |                              |
+     |<---- { type, accessToken } --|                              |
      |                              |                              |
-     |                              |  (8) セッション作成           |
-     |                              |      Deno KV に保存           |
-     |                              |                              |
-     |  (9) HTML + postMessage      |                              |
-     |<---- { type, sessionToken } -|                              |
-     |                              |                              |
-     |  (10) localStorage に保存     |                              |
-     |  (11) popup を閉じる          |                              |
+     |  (8) localStorage に保存     |                              |
+     |  (9) popup を閉じる          |                              |
 ```
 
 ---
@@ -59,22 +54,21 @@ SPA (*.github.io)              BFF (*.deno.dev)                 GitHub
 
 ### Step 1: SPA がログインを開始
 
-SPA は popup ウィンドウで BFF の `/auth/login` を開く。
+SPA は popup ウィンドウで OAuth Proxy の `/auth/login` を開く。
 
 ```typescript
 // SPA 側
 function openLoginPopup() {
-  const bffUrl = import.meta.env.VITE_BFF_URL;
-  const spaOrigin = window.location.origin;
-  const url = `${bffUrl}/auth/login?spa_origin=${encodeURIComponent(spaOrigin)}`;
+  const proxyUrl = import.meta.env.VITE_OAUTH_PROXY_URL;
+  const url = `${proxyUrl}/auth/login`;
 
   const popup = window.open(url, "ato-login", "width=600,height=700");
 
   // postMessage を待機
   const handler = (event: MessageEvent) => {
-    if (event.origin !== bffUrl) return;
+    if (event.origin !== proxyUrl) return;
     if (event.data?.type === "ato:auth:success") {
-      localStorage.setItem("ato:session", event.data.sessionToken);
+      localStorage.setItem("ato:token", event.data.accessToken);
       window.removeEventListener("message", handler);
       popup?.close();
       // 認証状態を更新
@@ -89,29 +83,27 @@ function openLoginPopup() {
 }
 ```
 
-### Step 2-3: BFF が state を生成し GitHub へリダイレクト
+### Step 2-3: OAuth Proxy が state を生成し GitHub へリダイレクト
 
 ```typescript
-// BFF: GET /auth/login
-app.get("/auth/login", async (c) => {
-  const spaOrigin = c.req.query("spa_origin") ?? SPA_ORIGIN;
-  const state = generateRandomHex(32);
-
-  await kv.set(
-    ["oauth_states", state],
-    { createdAt: now(), spaOrigin },
-    { expireIn: 600_000 },
-  );
-
+// OAuth Proxy: GET /auth/login
+function handleLogin(url: URL, env: Env): Response {
+  const state = crypto.randomUUID();
   const params = new URLSearchParams({
-    client_id: GITHUB_CLIENT_ID,
-    redirect_uri: `${BFF_ORIGIN}/auth/callback`,
+    client_id: env.GITHUB_CLIENT_ID,
+    redirect_uri: `${url.origin}/auth/callback`,
     scope: "repo",
     state,
   });
 
-  return c.redirect(`https://github.com/login/oauth/authorize?${params}`);
-});
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: `https://github.com/login/oauth/authorize?${params}`,
+      "Set-Cookie": `oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
+    },
+  });
+}
 ```
 
 **OAuth スコープ: `repo`**
@@ -122,19 +114,22 @@ app.get("/auth/login", async (c) => {
 ### Step 4-5: コールバックで state を検証
 
 ```typescript
-// BFF: GET /auth/callback
-// 1. state パラメータの検証
-const stateEntry = await kv.get(["oauth_states", state]);
-if (!stateEntry.value) {
-  // 不正な state -> エラー HTML を返却
+// OAuth Proxy: GET /auth/callback
+// Cookie から state を読み取り、query の state と比較
+const cookies = parseCookies(request.headers.get("Cookie") ?? "");
+if (cookies.oauth_state !== state) {
+  return postMessageResponse(env.SPA_ORIGIN, {
+    type: "ato:auth:error",
+    error: "invalid_state",
+  });
 }
-await kv.delete(["oauth_states", state]); // 使い捨て
+// Cookie をクリア (ワンタイム使用)
 ```
 
 ### Step 6: code を access_token に交換
 
 ```typescript
-// BFF: code -> token 交換
+// OAuth Proxy: code -> token 交換
 const response = await fetch("https://github.com/login/oauth/access_token", {
   method: "POST",
   headers: {
@@ -142,112 +137,62 @@ const response = await fetch("https://github.com/login/oauth/access_token", {
     Accept: "application/json",
   },
   body: JSON.stringify({
-    client_id: GITHUB_CLIENT_ID,
-    client_secret: GITHUB_CLIENT_SECRET,
+    client_id: env.GITHUB_CLIENT_ID,
+    client_secret: env.GITHUB_CLIENT_SECRET,
     code,
-    redirect_uri: `${BFF_ORIGIN}/auth/callback`,
   }),
 });
-const { access_token, token_type, scope } = await response.json();
+const { access_token } = await response.json();
 ```
 
-### Step 7: ユーザー情報を取得
+### Step 7: postMessage で SPA に access_token を返却
 
 ```typescript
-const userResponse = await fetch("https://api.github.com/user", {
-  headers: { Authorization: `Bearer ${access_token}` },
-});
-const user = await userResponse.json();
-```
-
-### Step 8: セッション作成
-
-```typescript
-const sessionToken = generateRandomHex(32); // 64 文字の hex
-
-await kv.set(
-  ["sessions", sessionToken],
-  {
-    githubAccessToken: access_token,
-    githubLogin: user.login,
-    githubId: user.id,
-    createdAt: now(),
-    expiresAt: addHours(now(), 24),
-  },
-  { expireIn: 24 * 60 * 60 * 1000 }, // 24 時間
-);
-```
-
-### Step 9: postMessage で SPA にトークンを返却
-
-```typescript
-// BFF: HTML レスポンスを返却
-return c.html(`
-  <!DOCTYPE html>
+// OAuth Proxy: HTML レスポンスを返却
+return new Response(
+  `<!DOCTYPE html>
   <html>
   <body>
     <p>Logging in...</p>
     <script>
       if (window.opener) {
         window.opener.postMessage(
-          { type: "ato:auth:success", sessionToken: "${sessionToken}" },
-          "${spaOrigin}"
+          { type: "ato:auth:success", accessToken: "${access_token}" },
+          "${env.SPA_ORIGIN}"
         );
       }
       window.close();
     </script>
   </body>
-  </html>
-`);
+  </html>`,
+  { headers: { "Content-Type": "text/html" } },
+);
 ```
 
 ---
 
-## 3. セッション管理
+## 3. トークンライフサイクル
 
-### 3.1 セッショントークン
+### 3.1 トークン仕様
 
-| 項目         | 仕様                                         |
-| ------------ | -------------------------------------------- |
-| 形式         | 32 byte ランダム hex (64 文字)               |
-| 生成         | `crypto.getRandomValues(new Uint8Array(32))` |
-| 保存先 (BFF) | Deno KV `["sessions", token]`                |
-| 保存先 (SPA) | `localStorage` key: `"ato:session"`          |
-| TTL          | 24 時間                                      |
-| 送信方法     | `Authorization: Bearer {token}` ヘッダー     |
+| 項目       | 仕様                                                     |
+| ---------- | -------------------------------------------------------- |
+| 形式       | GitHub が発行する `gho_` プレフィックスの access_token   |
+| SPA 保存先 | `localStorage` key: `"ato:token"`                        |
+| 送信方法   | GitHub API への `Authorization: Bearer {token}` ヘッダー |
+| 有効期限   | 無期限 (OAuth App のため。ユーザーが取り消すまで有効)    |
 
-### 3.2 スライディング有効期限
+### 3.2 トークン無効化の検知
 
-セッションの残り時間が 12 時間未満の場合、リクエスト処理時に TTL を 24 時間に延長する。
+GitHub API が 401 を返した場合、token が取り消されたと判断する。
 
-```typescript
-// BFF auth middleware
-function shouldExtendSession(session: Session): boolean {
-  const remainingMs = new Date(session.expiresAt).getTime() - Date.now();
-  return remainingMs < 12 * 60 * 60 * 1000; // 12 時間未満
-}
-
-if (shouldExtendSession(session)) {
-  const newExpiry = addHours(now(), 24);
-  await kv.set(
-    ["sessions", token],
-    { ...session, expiresAt: newExpiry },
-    { expireIn: 24 * 60 * 60 * 1000 },
-  );
-}
 ```
-
-### 3.3 トークンリフレッシュ戦略
-
-GitHub OAuth App の access_token はユーザーが明示的に取り消さない限り無期限。
-そのため、リフレッシュトークンの仕組みは不要。
-
-セッション期限切れ時:
-
-1. SPA が API 呼び出しで 401 を受信
-2. localStorage のトークンをクリア
-3. ログイン画面に遷移
-4. ユーザーが再ログイン (既に OAuth 認可済みなら GitHub は即座にリダイレクト)
+SPA: GitHub API 呼び出し
+  -> 401 Unauthorized
+  -> localStorage から token をクリア
+  -> ログイン画面へ遷移
+  -> ユーザーが再ログイン (既に OAuth 認可済みなら GitHub は即座にリダイレクト)
+```
 
 ---
 
@@ -266,7 +211,7 @@ interface AuthState {
 interface AuthContextValue {
   readonly state: AuthState;
   readonly login: () => void; // popup を開く
-  readonly logout: () => void; // トークンクリア + BFF logout
+  readonly logout: () => void; // token クリア (クライアント側のみ)
 }
 ```
 
@@ -280,37 +225,40 @@ localStorage から token を読み取り
   |
   +-- token なし --> ログインページ表示
   |
-  +-- token あり --> GET /auth/me で検証
+  +-- token あり --> GET https://api.github.com/user で検証
        |
        +-- 200 --> 認証済み状態に遷移、メイン画面表示
        +-- 401 --> token をクリア、ログインページ表示
 ```
 
-### 4.3 全 API リクエストへのトークン付与
+### 4.3 GitHub API リクエストへのトークン付与
 
 ```typescript
-// api-client.ts
-async function fetchWithAuth(
+// shared/lib/github-client.ts
+const GITHUB_API = "https://api.github.com";
+
+async function githubFetch(
   path: string,
   options?: RequestInit,
 ): Promise<Response> {
-  const token = localStorage.getItem("ato:session");
+  const token = localStorage.getItem("ato:token");
   if (!token) {
     throw new AuthError("Not authenticated");
   }
 
-  const response = await fetch(`${BFF_URL}${path}`, {
+  const response = await fetch(`${GITHUB_API}${path}`, {
     ...options,
     headers: {
       ...options?.headers,
       Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
     },
   });
 
   if (response.status === 401) {
-    localStorage.removeItem("ato:session");
-    // ログイン画面へリダイレクト
-    throw new AuthError("Session expired");
+    localStorage.removeItem("ato:token");
+    throw new AuthError("Token expired or revoked");
   }
 
   return response;
@@ -319,75 +267,48 @@ async function fetchWithAuth(
 
 ---
 
-## 5. CORS 設定
+## 5. ログアウト
 
-SPA と BFF が別オリジンのため、BFF に CORS 設定が必須。
+ログアウトは完全にクライアント側で完結する。サーバー呼び出しは不要。
 
-```typescript
-// BFF: CORS middleware (Hono)
-import { cors } from "hono/cors";
-
-app.use(
-  "/*",
-  cors({
-    origin: [
-      SPA_ORIGIN, // 本番: https://<user>.github.io
-      ...(IS_DEV ? ["http://localhost:5173"] : []), // 開発時
-    ],
-    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    exposeHeaders: ["X-RateLimit-Remaining", "X-RateLimit-Reset"],
-    maxAge: 3600,
-    credentials: false, // Bearer トークン方式のため不要
-  }),
-);
+```
+SPA:
+  1. localStorage から "ato:token" を削除
+  2. localStorage から "ato:user" を削除 (キャッシュ)
+  3. localStorage から "ato:repo-initialized" を削除
+  4. TanStack Query のキャッシュをクリア
+  5. ログインページへ遷移
 ```
 
 ---
 
-## 6. ログアウト
+## 6. セキュリティ考慮事項
 
-```
-SPA                          BFF
- |                            |
- |-- POST /auth/logout ------>|
- |   Authorization: Bearer    |
- |                            |-- Deno KV からセッション削除
- |<-- 200 { success: true } --|
- |                            |
- |-- localStorage クリア       |
- |-- ログインページへ遷移      |
-```
+| 脅威                   | 対策                                             |
+| ---------------------- | ------------------------------------------------ |
+| CSRF (OAuth フロー)    | `state` パラメータ + HttpOnly Cookie で検証      |
+| トークン漏洩 (XSS)     | CSP ヘッダーで軽減。localStorage のリスクは許容  |
+| postMessage なりすまし | オリジン検証 (`event.origin` チェック)           |
+| token 窃取             | access_token は localStorage に保存 (XSS リスク) |
+
+詳細は [08-security.md](./08-security.md) を参照。
 
 ---
 
-## 7. セキュリティ考慮事項
+## 7. 開発環境での認証
 
-| 脅威                   | 対策                                              |
-| ---------------------- | ------------------------------------------------- |
-| CSRF (OAuth フロー)    | `state` パラメータ + Deno KV で検証               |
-| トークン漏洩 (XSS)     | localStorage 保存のリスクあり。CSP ヘッダーで軽減 |
-| postMessage なりすまし | オリジン検証 (`event.origin` チェック)            |
-| セッションハイジャック | オペークトークン (推測不可能な 32 byte hex)       |
-| GitHub token 漏洩      | BFF 内でのみ保持。SPA には露出しない              |
-
----
-
-## 8. 開発環境での認証
-
-開発時は Vite の proxy 機能により同一オリジンで動作するため、CORS の問題は発生しない。
+開発時は OAuth Proxy をローカルで起動 (`npx wrangler dev`) する。
+SPA の Vite proxy で `/auth` を OAuth Proxy に転送。
 
 ```typescript
 // vite.config.ts
 export default defineConfig({
   server: {
     proxy: {
-      "/auth": "http://localhost:8000",
-      "/todos": "http://localhost:8000",
+      "/auth": "http://localhost:8787", // wrangler dev のデフォルトポート
     },
   },
 });
 ```
 
-ただし OAuth のコールバック URL は BFF のオリジン (`http://localhost:8000`) に設定する必要がある。
-GitHub OAuth App の設定で `Authorization callback URL` に `http://localhost:8000/auth/callback` を登録する。
+GitHub OAuth App の設定で `Authorization callback URL` に `http://localhost:8787/auth/callback` を登録する。

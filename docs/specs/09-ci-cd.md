@@ -2,17 +2,17 @@
 
 ## 概要
 
-GitHub Actions で CI (lint / typecheck / test) と CD (SPA -> GitHub Pages, BFF -> Deno Deploy) を自動化する。
+GitHub Actions で CI (lint / typecheck / test) と CD (SPA -> GitHub Pages, OAuth Proxy -> Cloudflare Workers) を自動化する。
 
 ---
 
 ## 1. ワークフロー一覧
 
-| ワークフロー     | トリガー                                              | 内容                              |
-| ---------------- | ----------------------------------------------------- | --------------------------------- |
-| `ci.yml`         | PR / push to main                                     | lint, typecheck, test (SPA + BFF) |
-| `deploy-spa.yml` | push to main (packages/spa or packages/shared 変更時) | Vite build -> GitHub Pages        |
-| `deploy-bff.yml` | push to main (packages/bff or packages/shared 変更時) | deployctl -> Deno Deploy          |
+| ワークフロー             | トリガー                               | 内容                                  |
+| ------------------------ | -------------------------------------- | ------------------------------------- |
+| `ci.yml`                 | PR / push to main                      | lint, typecheck, test (SPA)           |
+| `deploy-spa.yml`         | push to main (apps/spa 変更時)         | Vite build -> GitHub Pages            |
+| `deploy-oauth-proxy.yml` | push to main (apps/oauth-proxy 変更時) | wrangler deploy -> Cloudflare Workers |
 
 ---
 
@@ -75,32 +75,10 @@ jobs:
 
       - name: Coverage check
         run: pnpm --filter @ato/spa test:coverage
-
-  test-bff:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Check
-        run: deno task check
-        working-directory: packages/bff
-
-      - name: Lint
-        run: deno task lint
-        working-directory: packages/bff
-
-      - name: Format check
-        run: deno fmt --check
-        working-directory: packages/bff
-
-      - name: Run tests
-        run: deno task test
-        working-directory: packages/bff
 ```
+
+OAuth Proxy は ~50 行の薄い実装のため、CI でのテストジョブは不要。
+SPA のテストのみで十分なカバレッジを確保する。
 
 ---
 
@@ -115,8 +93,7 @@ on:
   push:
     branches: [main]
     paths:
-      - packages/spa/**
-      - packages/shared/**
+      - apps/spa/**
       - .github/workflows/deploy-spa.yml
 
 permissions:
@@ -146,12 +123,12 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          VITE_BFF_URL: ${{ vars.BFF_URL }}
+          VITE_OAUTH_PROXY_URL: ${{ vars.OAUTH_PROXY_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/spa/dist
+          path: apps/spa/dist
 
   deploy:
     needs: build
@@ -183,50 +160,49 @@ GitHub Pages の設定:
 
 ---
 
-## 4. BFF デプロイ
+## 4. OAuth Proxy デプロイ
 
-### .github/workflows/deploy-bff.yml
+### .github/workflows/deploy-oauth-proxy.yml
 
 ```yaml
-name: Deploy BFF
+name: Deploy OAuth Proxy
 
 on:
   push:
     branches: [main]
     paths:
-      - packages/bff/**
-      - packages/shared/**
-      - .github/workflows/deploy-bff.yml
+      - apps/oauth-proxy/**
+      - .github/workflows/deploy-oauth-proxy.yml
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+      - uses: pnpm/action-setup@v4
 
-      - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
+      - uses: actions/setup-node@v4
         with:
-          project: ato-bff
-          entrypoint: packages/bff/src/main.ts
-          root: .
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: apps/oauth-proxy
 ```
 
-### Deno Deploy 設定
+### Cloudflare Workers 設定
 
-| 項目             | 値                               |
-| ---------------- | -------------------------------- |
-| プロジェクト名   | `ato-bff`                        |
-| エントリポイント | `packages/bff/src/main.ts`       |
-| 環境変数         | Deno Deploy ダッシュボードで設定 |
-| KV               | 自動 (Deno Deploy 組み込み)      |
+| 項目             | 値                                                        |
+| ---------------- | --------------------------------------------------------- |
+| プロジェクト名   | `ato-oauth`                                               |
+| エントリポイント | `apps/oauth-proxy/src/index.ts`                           |
+| Secrets          | Cloudflare ダッシュボード or `wrangler secret put` で設定 |
 
 ---
 
@@ -234,20 +210,29 @@ jobs:
 
 ### 5.1 GitHub Actions (Repository Variables / Secrets)
 
-| 名前      | 種別     | 用途                   |
-| --------- | -------- | ---------------------- |
-| `BFF_URL` | Variable | SPA ビルド時の BFF URL |
+| 名前                   | 種別     | 用途                                       |
+| ---------------------- | -------- | ------------------------------------------ |
+| `OAUTH_PROXY_URL`      | Variable | SPA ビルド時の OAuth Proxy URL             |
+| `CLOUDFLARE_API_TOKEN` | Secret   | Cloudflare Workers デプロイ用 API トークン |
 
-### 5.2 Deno Deploy (Environment Variables)
+### 5.2 Cloudflare Workers (Secrets / Variables)
 
-| 名前                   | 用途                          | 例                         |
-| ---------------------- | ----------------------------- | -------------------------- |
-| `GITHUB_CLIENT_ID`     | OAuth App Client ID           | `Iv1.abc123...`            |
-| `GITHUB_CLIENT_SECRET` | OAuth App Client Secret       | `secret_...`               |
-| `SPA_ORIGIN`           | CORS 許可オリジン             | `https://user.github.io`   |
-| `BFF_ORIGIN`           | BFF 自身のオリジン            | `https://ato-bff.deno.dev` |
-| `DATASTORE_REPO_NAME`  | リポジトリ名 (optional)       | `ato-datastore`            |
-| `SESSION_TTL_HOURS`    | セッション有効期間 (optional) | `24`                       |
+| 名前                   | 種別     | 用途                    | 例                         |
+| ---------------------- | -------- | ----------------------- | -------------------------- |
+| `GITHUB_CLIENT_ID`     | Secret   | OAuth App Client ID     | `Iv1.abc123...`            |
+| `GITHUB_CLIENT_SECRET` | Secret   | OAuth App Client Secret | `secret_...`               |
+| `SPA_ORIGIN`           | Variable | CORS 許可 + postMessage | `https://{user}.github.io` |
+
+設定方法:
+
+```bash
+# Secrets は wrangler CLI で設定
+wrangler secret put GITHUB_CLIENT_ID
+wrangler secret put GITHUB_CLIENT_SECRET
+
+# Variables は wrangler.toml の [vars] で設定
+# SPA_ORIGIN = "https://{user}.github.io"
+```
 
 ---
 
@@ -255,11 +240,11 @@ jobs:
 
 GitHub Settings > Developer settings > OAuth Apps で作成。
 
-| 項目                       | 開発                                  | 本番                                     |
-| -------------------------- | ------------------------------------- | ---------------------------------------- |
-| Application name           | ATO (dev)                             | ATO                                      |
-| Homepage URL               | `http://localhost:5173`               | `https://user.github.io/ato`             |
-| Authorization callback URL | `http://localhost:8000/auth/callback` | `https://ato-bff.deno.dev/auth/callback` |
+| 項目                       | 開発                                  | 本番                                                 |
+| -------------------------- | ------------------------------------- | ---------------------------------------------------- |
+| Application name           | ATO (dev)                             | ATO                                                  |
+| Homepage URL               | `http://localhost:5173`               | `https://{user}.github.io/ato`                       |
+| Authorization callback URL | `http://localhost:8787/auth/callback` | `https://ato-oauth.{user}.workers.dev/auth/callback` |
 
 開発用と本番用で別の OAuth App を作成する。
 
@@ -285,18 +270,29 @@ GitHub Settings > Developer settings > OAuth Apps で作成。
 ### 8.1 事前準備
 
 1. GitHub OAuth App を作成 (開発用 + 本番用)
-2. Deno Deploy プロジェクトを作成 (`ato-bff`)
+2. Cloudflare アカウントで API トークンを作成 (Workers 編集権限)
 3. GitHub リポジトリの Settings > Pages で Source を "GitHub Actions" に設定
 
-### 8.2 デプロイ
+### 8.2 Cloudflare Workers セットアップ
 
-1. Deno Deploy に環境変数を設定 (GITHUB_CLIENT_ID, SECRET, SPA_ORIGIN, BFF_ORIGIN)
-2. GitHub Actions の Repository Variables に `BFF_URL` を設定
+```bash
+# 初回デプロイ (プロジェクト自動作成)
+cd apps/oauth-proxy
+npx wrangler deploy
+
+# Secrets 設定
+npx wrangler secret put GITHUB_CLIENT_ID
+npx wrangler secret put GITHUB_CLIENT_SECRET
+```
+
+### 8.3 GitHub Actions 設定
+
+1. Repository Secrets に `CLOUDFLARE_API_TOKEN` を設定
+2. Repository Variables に `OAUTH_PROXY_URL` を設定 (例: `https://ato-oauth.{user}.workers.dev`)
 3. main ブランチに push
-4. GitHub Actions が自動で SPA と BFF をデプロイ
 
-### 8.3 確認
+### 8.4 確認
 
-1. SPA: `https://user.github.io/ato` にアクセス
-2. BFF: `https://ato-bff.deno.dev/auth/me` で 401 が返ること
+1. SPA: `https://{user}.github.io/ato` にアクセス
+2. OAuth Proxy: `https://ato-oauth.{user}.workers.dev/auth/login` でGitHub OAuth ページにリダイレクトされること
 3. ログインフローが正常に動作すること

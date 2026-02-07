@@ -5,19 +5,20 @@
 React 19 + Vite 6 + TailwindCSS 4 の SPA。GitHub Pages にデプロイする。
 「超絶シンプル」「高速・軽快」が最重要 UX 方針。
 
+SPA がビジネスロジックの全てを担う: GitHub API 直接呼び出し、Todo CRUD、リポジトリ自動作成、エラーハンドリング。
+
 ---
 
 ## 1. ルート構成
 
 React Router v7 (declarative mode) を使用。
 
-| パス             | コンポーネント     | 認証 | 説明                            |
-| ---------------- | ------------------ | ---- | ------------------------------- |
-| `/`              | `MainPage`         | 必須 | 未完了 TODO 一覧 + 追加フォーム |
-| `/login`         | `LoginPage`        | 不要 | ログインボタン表示              |
-| `/auth/callback` | `AuthCallbackPage` | 不要 | OAuth コールバック処理          |
-| `/todos/:id`     | `DetailPage`       | 必須 | TODO 詳細・編集                 |
-| `/completed`     | `CompletedPage`    | 必須 | 完了済み一覧                    |
+| パス         | コンポーネント  | 認証 | 説明                            |
+| ------------ | --------------- | ---- | ------------------------------- |
+| `/`          | `MainPage`      | 必須 | 未完了 TODO 一覧 + 追加フォーム |
+| `/login`     | `LoginPage`     | 不要 | ログインボタン表示              |
+| `/todos/:id` | `DetailPage`    | 必須 | TODO 詳細・編集                 |
+| `/completed` | `CompletedPage` | 必須 | 完了済み一覧                    |
 
 ### ルーティング設定
 
@@ -36,7 +37,6 @@ export const router = createBrowserRouter(
       ],
     },
     { path: "/login", element: <LoginPage /> },
-    { path: "/auth/callback", element: <AuthCallbackPage /> },
   ],
   { basename: import.meta.env.BASE_URL },
 );
@@ -90,7 +90,6 @@ App
             CompletedList  -- 完了済み TodoItem 一覧
             LoadMoreButton -- 追加読み込みボタン
     LoginPage              -- ログインボタンのみ
-    AuthCallbackPage       -- OAuth コールバック処理中の表示
 ```
 
 ### 各コンポーネント詳細
@@ -327,7 +326,7 @@ function CompletedPage() {
     isLoading,
   } = useClosedTodos();
 
-  const todos = data?.pages.flatMap((page) => page.data ?? []) ?? [];
+  const todos = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
     <div className="space-y-4">
@@ -361,9 +360,282 @@ function CompletedPage() {
 
 ---
 
-## 3. 状態管理
+## 3. GitHub API クライアント
 
-### 3.1 認証状態: AuthContext
+SPA から GitHub REST API を直接呼び出す。全てのビジネスロジックは SPA 内で完結する。
+
+### 3.1 ベースクライアント
+
+```typescript
+// shared/lib/github-client.ts
+const GITHUB_API = "https://api.github.com";
+
+async function githubFetch(
+  path: string,
+  options?: RequestInit,
+): Promise<Response> {
+  const token = localStorage.getItem("ato:token");
+  if (!token) {
+    throw new AuthError("Not authenticated");
+  }
+
+  const response = await fetch(`${GITHUB_API}${path}`, {
+    ...options,
+    headers: {
+      ...options?.headers,
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+
+  if (response.status === 401) {
+    localStorage.removeItem("ato:token");
+    throw new AuthError("Token expired or revoked");
+  }
+
+  return response;
+}
+```
+
+### 3.2 Todo API 関数
+
+```typescript
+// features/todos/lib/github-api.ts
+const REPO_NAME = "ato-datastore";
+
+function repoPath(login: string): string {
+  return `/repos/${login}/${REPO_NAME}`;
+}
+
+/** Todo 一覧取得 */
+async function fetchTodos(
+  login: string,
+  params: {
+    state?: "open" | "closed";
+    perPage?: number;
+    page?: number;
+    sort?: "created" | "updated";
+    direction?: "asc" | "desc";
+  },
+): Promise<{ todos: Todo[]; hasNextPage: boolean; nextPage: number | null }> {
+  const query = new URLSearchParams({
+    state: params.state ?? "open",
+    per_page: String(params.perPage ?? 30),
+    page: String(params.page ?? 1),
+    sort: params.sort ?? "updated",
+    direction: params.direction ?? "desc",
+  });
+
+  const response = await githubFetch(`${repoPath(login)}/issues?${query}`);
+
+  if (!response.ok) {
+    throw new GitHubApiError(response.status, await response.json());
+  }
+
+  const issues: GitHubIssue[] = await response.json();
+
+  // Pull Request を除外 (GitHub Issues API は PR も返す)
+  const todos = issues
+    .filter((issue) => !issue.pull_request)
+    .map(mapIssueToTodo);
+
+  const linkHeader = response.headers.get("Link");
+  const { hasNextPage, nextPage } = parseLinkHeader(linkHeader);
+
+  return { todos, hasNextPage, nextPage };
+}
+
+/** Todo 作成 */
+async function createTodo(
+  login: string,
+  input: CreateTodoInput,
+): Promise<Todo> {
+  const response = await githubFetch(`${repoPath(login)}/issues`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: input.title,
+      body: input.body,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new GitHubApiError(response.status, await response.json());
+  }
+
+  return mapIssueToTodo(await response.json());
+}
+
+/** Todo 詳細取得 */
+async function fetchTodo(login: string, id: number): Promise<Todo> {
+  const response = await githubFetch(`${repoPath(login)}/issues/${id}`);
+
+  if (!response.ok) {
+    throw new GitHubApiError(response.status, await response.json());
+  }
+
+  const issue: GitHubIssue = await response.json();
+  if (issue.pull_request) {
+    throw new NotFoundError("Not a todo item");
+  }
+
+  return mapIssueToTodo(issue);
+}
+
+/** Todo 更新 */
+async function updateTodo(
+  login: string,
+  id: number,
+  input: UpdateTodoInput,
+): Promise<Todo> {
+  const response = await githubFetch(`${repoPath(login)}/issues/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new GitHubApiError(response.status, await response.json());
+  }
+
+  return mapIssueToTodo(await response.json());
+}
+
+/** Todo 完了 */
+async function closeTodo(login: string, id: number): Promise<Todo> {
+  return updateTodo(login, id, {
+    state: "closed",
+    state_reason: "completed",
+  });
+}
+
+/** Todo 再オープン */
+async function reopenTodo(login: string, id: number): Promise<Todo> {
+  return updateTodo(login, id, {
+    state: "open",
+    state_reason: "reopened",
+  });
+}
+```
+
+### 3.3 Issue -> Todo 変換
+
+```typescript
+// features/todos/lib/issue-mapper.ts
+function mapIssueToTodo(issue: GitHubIssue): Todo {
+  return {
+    id: issue.number,
+    title: issue.title,
+    body: issue.body ?? "",
+    state: issue.state as "open" | "closed",
+    createdAt: issue.created_at,
+    updatedAt: issue.updated_at,
+    closedAt: issue.closed_at,
+    url: issue.html_url,
+  };
+}
+```
+
+### 3.4 ページネーション
+
+```typescript
+// features/todos/lib/pagination.ts
+function parseLinkHeader(header: string | null): {
+  hasNextPage: boolean;
+  nextPage: number | null;
+} {
+  if (!header) return { hasNextPage: false, nextPage: null };
+
+  const nextMatch = header.match(/<[^>]*[?&]page=(\d+)[^>]*>;\s*rel="next"/);
+  if (!nextMatch) return { hasNextPage: false, nextPage: null };
+
+  return {
+    hasNextPage: true,
+    nextPage: Number(nextMatch[1]),
+  };
+}
+```
+
+### 3.5 リポジトリ自動作成
+
+```typescript
+// features/todos/lib/repo-init.ts
+const REPO_INITIALIZED_KEY = "ato:repo-initialized";
+
+async function ensureRepository(login: string): Promise<void> {
+  // localStorage キャッシュ確認
+  if (localStorage.getItem(REPO_INITIALIZED_KEY) === "true") {
+    return;
+  }
+
+  // リポジトリ存在確認
+  const checkRes = await githubFetch(`/repos/${login}/ato-datastore`);
+  if (checkRes.ok) {
+    localStorage.setItem(REPO_INITIALIZED_KEY, "true");
+    return;
+  }
+
+  if (checkRes.status !== 404) {
+    throw new GitHubApiError(checkRes.status, await checkRes.json());
+  }
+
+  // リポジトリ作成
+  const createRes = await githubFetch("/user/repos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "ato-datastore",
+      private: true,
+      description: "Data store for ATO app",
+      auto_init: true,
+      has_issues: true,
+      has_projects: false,
+      has_wiki: false,
+    }),
+  });
+
+  if (createRes.ok || createRes.status === 422) {
+    // 422 = 既に存在 (競合状態への対応)
+    localStorage.setItem(REPO_INITIALIZED_KEY, "true");
+    return;
+  }
+
+  throw new RepoCreationError("Failed to create ato-datastore repository");
+}
+```
+
+### 3.6 トークン管理
+
+```typescript
+// features/auth/lib/token-store.ts
+const TOKEN_KEY = "ato:token";
+const USER_KEY = "ato:user";
+
+function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem("ato:repo-initialized");
+}
+
+function isAuthenticated(): boolean {
+  return getToken() !== null;
+}
+```
+
+---
+
+## 4. 状態管理
+
+### 4.1 認証状態: AuthContext
 
 ```typescript
 // features/auth/hooks/use-auth.ts
@@ -376,14 +648,21 @@ interface AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem("ato:session"),
-  );
+  const [token, setToken] = useState<string | null>(() => getToken());
 
-  // token がある場合、/auth/me でユーザー情報を取得
+  // token がある場合、GitHub API でユーザー情報を取得
   const { data: user, isLoading } = useQuery({
     queryKey: ["auth", "me"],
-    queryFn: () => fetchMe(),
+    queryFn: async () => {
+      const response = await githubFetch("/user");
+      if (!response.ok) throw new AuthError("Failed to fetch user");
+      const data = await response.json();
+      return {
+        login: data.login,
+        id: data.id,
+        avatarUrl: data.avatar_url,
+      } as AuthUser;
+    },
     enabled: !!token,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 分
@@ -393,51 +672,64 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### 3.2 サーバー状態: TanStack Query
+### 4.2 サーバー状態: TanStack Query
 
 ```typescript
 // features/todos/hooks/use-todos.ts
 
 /** 未完了一覧 */
 function useOpenTodos() {
+  const { state } = useAuth();
   return useQuery({
     queryKey: ["todos", "open"],
     queryFn: () =>
-      fetchTodos({
+      fetchTodos(state.user!.login, {
         state: "open",
-        limit: 30,
+        perPage: 30,
         sort: "updated",
         direction: "desc",
       }),
+    enabled: !!state.user,
     staleTime: 30_000, // 30 秒
   });
 }
 
 /** 完了済み一覧 (infinite query) */
 function useClosedTodos() {
+  const { state } = useAuth();
   return useInfiniteQuery({
     queryKey: ["todos", "closed"],
     queryFn: ({ pageParam }) =>
-      fetchTodos({ state: "closed", limit: 30, cursor: pageParam }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.meta?.nextCursor,
+      fetchTodos(state.user!.login, {
+        state: "closed",
+        perPage: 30,
+        page: pageParam,
+      }),
+    enabled: !!state.user,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNextPage ? lastPage.nextPage : undefined,
     staleTime: 60_000,
   });
 }
 
 /** 単一 TODO */
 function useTodo(id: number) {
+  const { state } = useAuth();
   return useQuery({
     queryKey: ["todos", id],
-    queryFn: () => fetchTodo(id),
+    queryFn: () => fetchTodo(state.user!.login, id),
+    enabled: !!state.user,
   });
 }
 
 /** TODO 作成 (楽観的更新) */
 function useCreateTodo() {
   const queryClient = useQueryClient();
+  const { state } = useAuth();
   return useMutation({
-    mutationFn: createTodo,
+    mutationFn: (input: CreateTodoInput) =>
+      createTodo(state.user!.login, input),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: ["todos", "open"] });
       const previous = queryClient.getQueryData(["todos", "open"]);
@@ -445,9 +737,9 @@ function useCreateTodo() {
       // 楽観的にリストに追加
       queryClient.setQueryData(
         ["todos", "open"],
-        (old: ApiResponse<Todo[]>) => ({
+        (old: { todos: Todo[] } | undefined) => ({
           ...old,
-          data: [
+          todos: [
             {
               id: -Date.now(), // 一時 ID
               title: input.title,
@@ -458,7 +750,7 @@ function useCreateTodo() {
               closedAt: null,
               url: "",
             },
-            ...(old?.data ?? []),
+            ...(old?.todos ?? []),
           ],
         }),
       );
@@ -477,8 +769,9 @@ function useCreateTodo() {
 /** TODO 完了 (楽観的更新) */
 function useCloseTodo() {
   const queryClient = useQueryClient();
+  const { state } = useAuth();
   return useMutation({
-    mutationFn: closeTodo,
+    mutationFn: (id: number) => closeTodo(state.user!.login, id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["todos", "open"] });
       const previous = queryClient.getQueryData(["todos", "open"]);
@@ -486,9 +779,9 @@ function useCloseTodo() {
       // 楽観的にリストから除外
       queryClient.setQueryData(
         ["todos", "open"],
-        (old: ApiResponse<Todo[]>) => ({
+        (old: { todos: Todo[] } | undefined) => ({
           ...old,
-          data: (old?.data ?? []).filter((t) => t.id !== id),
+          todos: (old?.todos ?? []).filter((t) => t.id !== id),
         }),
       );
 
@@ -511,9 +804,10 @@ function useReopenTodo() {
 /** TODO 更新 */
 function useUpdateTodo() {
   const queryClient = useQueryClient();
+  const { state } = useAuth();
   return useMutation({
     mutationFn: ({ id, ...data }: { id: number } & UpdateTodoInput) =>
-      updateTodo(id, data),
+      updateTodo(state.user!.login, id, data),
     onSuccess: (updatedTodo) => {
       queryClient.setQueryData(["todos", updatedTodo.id], updatedTodo);
       queryClient.invalidateQueries({ queryKey: ["todos", "open"] });
@@ -522,7 +816,7 @@ function useUpdateTodo() {
 }
 ```
 
-### 3.3 キャッシュ戦略
+### 4.3 キャッシュ戦略
 
 | クエリ       | staleTime          | 更新トリガー                          |
 | ------------ | ------------------ | ------------------------------------- |
@@ -533,9 +827,9 @@ function useUpdateTodo() {
 
 ---
 
-## 4. UX 詳細
+## 5. UX 詳細
 
-### 4.1 キーボード操作
+### 5.1 キーボード操作
 
 | 操作               | 動作                                          |
 | ------------------ | --------------------------------------------- |
@@ -544,14 +838,14 @@ function useUpdateTodo() {
 | TODO リスト: Enter | 選択中の TODO の詳細画面へ                    |
 | 詳細画面: Escape   | 前の画面に戻る (未保存の変更がある場合は確認) |
 
-### 4.2 ローディング
+### 5.2 ローディング
 
 - **初回表示:** スケルトン UI (3-5 行のプレースホルダー)
 - **TODO 追加:** 楽観的更新で即座にリストに追加。失敗時はロールバック
 - **完了トグル:** 楽観的更新で即座にリストから除外。CSS fade-out アニメーション
 - **詳細保存:** ボタンが "Saving..." に変化。成功でフィードバック
 
-### 4.3 スケルトン UI
+### 5.3 スケルトン UI
 
 ```typescript
 function ListSkeleton() {
@@ -568,14 +862,14 @@ function ListSkeleton() {
 }
 ```
 
-### 4.4 エラー表示
+### 5.4 エラー表示
 
 - **ネットワークエラー:** 画面上部にバナー表示 + 「再試行」ボタン
 - **バリデーションエラー:** 入力フィールドの下にインラインメッセージ
-- **401 (セッション切れ):** ログイン画面へリダイレクト
+- **401 (トークン無効):** ログイン画面へリダイレクト
 - **429 (レート制限):** 「しばらく待ってから再試行してください」メッセージ
 
-### 4.5 レスポンシブデザイン
+### 5.5 レスポンシブデザイン
 
 モバイルファースト。`max-w-2xl` で PC でもコンパクトに収める。
 
@@ -584,7 +878,7 @@ function ListSkeleton() {
 | < 640px (mobile)   | 全幅、タッチフレンドリーなボタンサイズ (min-h-12) |
 | >= 640px (desktop) | max-w-2xl 中央寄せ、ホバー効果追加                |
 
-### 4.6 アニメーション
+### 5.6 アニメーション
 
 CSS のみ。Framer Motion は不使用 (バンドルサイズ優先)。
 
@@ -620,7 +914,7 @@ CSS のみ。Framer Motion は不使用 (バンドルサイズ優先)。
 }
 ```
 
-### 4.7 完了済みリンク
+### 5.7 完了済みリンク
 
 メイン画面の最下部に控えめに配置。
 
@@ -638,7 +932,7 @@ function CompletedLink() {
 
 ---
 
-## 5. アクセシビリティ
+## 6. アクセシビリティ
 
 ### フォーカス管理
 
@@ -668,16 +962,21 @@ function CompletedLink() {
 
 ---
 
-## 6. SPA ファイル構成
+## 7. SPA ファイル構成
 
 ```
-packages/spa/
+apps/spa/
   public/
     404.html                       # GitHub Pages SPA fallback
     favicon.svg
   src/
     main.tsx                       # エントリポイント
     globals.css                    # TailwindCSS import
+    types/
+      todo.ts                      # Todo, CreateTodoInput, UpdateTodoInput
+      github.ts                    # GitHubIssue, GitHubUser, GitHubRepository
+      auth.ts                      # AuthUser
+      errors.ts                    # AuthError, GitHubApiError, etc.
     app/
       App.tsx                      # ルートコンポーネント
       router.tsx                   # React Router 設定
@@ -687,13 +986,14 @@ packages/spa/
         components/
           LoginButton.tsx
           AuthGuard.tsx
-          AuthCallbackPage.tsx
         hooks/
           use-auth.ts              # AuthContext + useAuth hook
         lib/
           auth-client.ts           # popup + postMessage ロジック
+          token-store.ts           # localStorage CRUD
         __tests__/
           use-auth.test.ts
+          token-store.test.ts
       todos/
         components/
           TodoList.tsx
@@ -707,10 +1007,15 @@ packages/spa/
         hooks/
           use-todos.ts             # TanStack Query hooks
         lib/
-          todo-api.ts              # BFF API クライアント関数
+          github-api.ts            # GitHub Issues API クライアント関数
+          issue-mapper.ts          # GitHubIssue -> Todo 変換
+          pagination.ts            # Link ヘッダー解析
+          repo-init.ts             # リポジトリ自動作成
         __tests__/
-          use-todos.test.ts
-          todo-api.test.ts
+          github-api.test.ts
+          issue-mapper.test.ts
+          pagination.test.ts
+          repo-init.test.ts
     shared/
       components/
         layout/
@@ -720,10 +1025,10 @@ packages/spa/
           ErrorBanner.tsx
           NotFound.tsx
       lib/
-        api-client.ts              # fetch wrapper (Bearer token 付与)
-        config.ts                  # 環境変数 (VITE_BFF_URL)
+        github-client.ts           # GitHub API fetch ラッパー
       __tests__/
         setup.ts                   # Vitest setup (jsdom, msw)
+        github-client.test.ts
   index.html
   vite.config.ts
   vitest.config.ts

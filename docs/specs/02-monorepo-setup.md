@@ -3,7 +3,7 @@
 ## 概要
 
 `~/projects/monorepo` パターンに準拠した pnpm workspace モノリポ。
-SPA と共有パッケージは pnpm 管理、BFF は Deno 管理 (pnpm workspace 外)。
+SPA と OAuth Proxy の 2 パッケージ構成。OAuth Proxy は pnpm workspace に含め、wrangler で管理する。
 
 ---
 
@@ -15,7 +15,7 @@ ato/
     workflows/
       ci.yml                           # lint, typecheck, test
       deploy-spa.yml                   # Vite build -> GitHub Pages
-      deploy-bff.yml                   # deployctl -> Deno Deploy
+      deploy-oauth-proxy.yml           # wrangler -> Cloudflare Workers
   .husky/
     pre-commit                         # pnpm exec lint-staged
   .markdownlint.json                   # Markdown lint 設定
@@ -26,16 +26,7 @@ ato/
   README.md
   docs/
     specs/                             # 設計ドキュメント (本ディレクトリ)
-  packages/
-    shared/                            # 共有型定義
-      src/
-        types/
-          todo.ts                      # Todo, CreateTodoInput, UpdateTodoInput
-          api.ts                       # ApiResponse, PaginatedResponse, ApiError
-          auth.ts                      # AuthUser
-          index.ts                     # re-export
-      package.json                     # @ato/shared
-      tsconfig.json
+  apps/
     spa/                               # React SPA
       public/
         404.html                       # GitHub Pages SPA fallback
@@ -52,11 +43,17 @@ ato/
             components/
             hooks/
             lib/
+              token-store.ts           # getToken, setToken, clearToken
             __tests__/
           todos/
             components/
             hooks/
             lib/
+              github-api.ts            # Todo CRUD (GitHub API 直接呼び出し)
+              github-client.ts         # githubFetch ベースクライアント
+              issue-mapper.ts          # GitHubIssue -> Todo 変換
+              pagination.ts            # Link ヘッダー解析
+              repo-init.ts             # リポジトリ自動作成
             __tests__/
         shared/
           components/
@@ -65,39 +62,25 @@ ato/
           lib/
           __tests__/
             setup.ts
+        types/
+          todo.ts                      # Todo, CreateTodoInput, UpdateTodoInput
+          github.ts                    # GitHubIssue, GitHubUser, GitHubRepository
+          auth.ts                      # AuthUser
+          errors.ts                    # AuthError, GitHubApiError, NetworkError 等
       index.html
       vite.config.ts
       vitest.config.ts
       eslint.config.mjs
       tsconfig.json
       package.json                     # @ato/spa
-    bff/                               # Deno BFF (pnpm workspace 外)
+    oauth-proxy/                       # OAuth Proxy (Cloudflare Workers)
       src/
-        main.ts
-        app.ts
-        config.ts
-        routes/
-          auth.ts
-          todos.ts
-        middleware/
-          auth.ts
-          repo-init.ts
-          error-handler.ts
-        services/
-          github-api.ts
-          session-store.ts
-        lib/
-          crypto.ts
-          error-mapper.ts
-          issue-mapper.ts
-          pagination.ts
-          validator.ts
-        __tests__/
-          routes/
-          services/
-          lib/
-      deno.json
-      .env.example
+        index.ts                       # Worker エントリポイント (~50 行)
+      wrangler.toml                    # Cloudflare Workers 設定
+      .dev.vars                        # ローカル開発用環境変数 (.gitignore 対象)
+      .dev.vars.example                # 環境変数テンプレート
+      tsconfig.json
+      package.json                     # @ato/oauth-proxy
 ```
 
 ---
@@ -112,24 +95,24 @@ ato/
   "version": "0.1.0",
   "private": true,
   "description": "ATO - Simple TODO app backed by GitHub Issues",
-  "workspaces": ["packages/shared", "packages/spa"],
   "scripts": {
     "dev": "pnpm --filter @ato/spa dev",
+    "dev:proxy": "pnpm --filter @ato/oauth-proxy dev",
     "build": "pnpm --filter @ato/spa build",
     "test": "pnpm --filter @ato/spa test",
     "lint": "pnpm --filter @ato/spa lint",
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json}\"",
-    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules --ignore .next",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
     "typecheck": "pnpm --filter @ato/spa typecheck",
     "prepare": "husky"
   },
   "lint-staged": {
-    "packages/spa/**/*.{ts,tsx}": [
+    "apps/spa/**/*.{ts,tsx}": [
       "pnpm --filter @ato/spa exec eslint --fix",
       "prettier --write"
     ],
-    "packages/shared/**/*.{ts,tsx}": ["prettier --write"],
+    "apps/oauth-proxy/**/*.ts": ["prettier --write"],
     "*.json": ["prettier --write"],
     "*.md": ["prettier --write", "markdownlint --fix"]
   },
@@ -155,11 +138,9 @@ ato/
 
 ```yaml
 packages:
-  - packages/shared
-  - packages/spa
+  - apps/spa
+  - apps/oauth-proxy
 ```
-
-BFF は含めない (Deno 管理)。
 
 ### 2.3 tsconfig.json (root)
 
@@ -232,59 +213,9 @@ pnpm exec lint-staged
 
 ---
 
-## 3. packages/shared
+## 3. apps/spa
 
 ### 3.1 package.json
-
-```json
-{
-  "name": "@ato/shared",
-  "version": "0.1.0",
-  "private": true,
-  "main": "./src/types/index.ts",
-  "types": "./src/types/index.ts",
-  "exports": {
-    ".": {
-      "types": "./src/types/index.ts",
-      "default": "./src/types/index.ts"
-    }
-  }
-}
-```
-
-依存なし (型定義のみ)。
-
-### 3.2 tsconfig.json
-
-```json
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
-}
-```
-
-### 3.3 型定義ファイル
-
-[06-data-model.md](./06-data-model.md) で定義した型を配置。
-
-```
-src/types/
-  todo.ts    -- Todo, CreateTodoInput, UpdateTodoInput
-  api.ts     -- ApiResponse, PaginatedResponse, ApiError, ErrorCode
-  auth.ts    -- AuthUser
-  index.ts   -- re-export
-```
-
----
-
-## 4. packages/spa
-
-### 4.1 package.json
 
 ```json
 {
@@ -303,7 +234,6 @@ src/types/
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ato/shared": "workspace:*",
     "@tanstack/react-query": "^5",
     "react": "^19",
     "react-dom": "^19",
@@ -332,7 +262,9 @@ src/types/
 }
 ```
 
-### 4.2 tsconfig.json
+`@ato/shared` への依存は不要。型定義は `apps/spa/src/types/` に直接配置する。
+
+### 3.2 tsconfig.json
 
 ```json
 {
@@ -352,7 +284,7 @@ src/types/
 }
 ```
 
-### 4.3 vite.config.ts
+### 3.3 vite.config.ts
 
 ```typescript
 import { defineConfig } from "vite";
@@ -369,8 +301,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/auth": "http://localhost:8000",
-      "/todos": "http://localhost:8000",
+      // OAuth Proxy (wrangler dev) へ転送
+      "/auth": "http://localhost:8787",
     },
   },
   build: {
@@ -379,7 +311,10 @@ export default defineConfig({
 });
 ```
 
-### 4.4 vitest.config.ts
+開発時は Vite proxy で `/auth` リクエストを OAuth Proxy (wrangler dev) に転送する。
+SPA は GitHub API (`https://api.github.com`) を直接呼び出すため、`/todos` 等のプロキシは不要。
+
+### 3.4 vitest.config.ts
 
 ```typescript
 import { defineConfig } from "vitest/config";
@@ -409,7 +344,7 @@ export default defineConfig({
 });
 ```
 
-### 4.5 eslint.config.mjs
+### 3.5 eslint.config.mjs
 
 ```javascript
 import { defineConfig, globalIgnores } from "eslint/config";
@@ -441,89 +376,129 @@ export default defineConfig([
 ]);
 ```
 
-### 4.6 globals.css
+### 3.6 globals.css
 
 ```css
 @import "tailwindcss";
 ```
 
+### 3.7 環境変数
+
+```
+# apps/spa/.env (開発用)
+VITE_OAUTH_PROXY_URL=http://localhost:8787
+```
+
+SPA が参照する環境変数は `VITE_OAUTH_PROXY_URL` のみ。
+GitHub API の URL (`https://api.github.com`) はコード内定数とする。
+
 ---
 
-## 5. packages/bff
+## 4. apps/oauth-proxy
 
-### 5.1 deno.json
+### 4.1 package.json
 
 ```json
 {
-  "tasks": {
-    "dev": "deno run --watch --allow-net --allow-env --allow-read --unstable-kv src/main.ts",
-    "start": "deno run --allow-net --allow-env --allow-read --unstable-kv src/main.ts",
-    "test": "deno test --allow-net --allow-env --allow-read --unstable-kv src/__tests__/",
-    "check": "deno check src/**/*.ts",
-    "fmt": "deno fmt",
-    "lint": "deno lint"
+  "name": "@ato/oauth-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
   },
-  "imports": {
-    "@hono/hono": "jsr:@hono/hono@^4",
-    "@std/assert": "jsr:@std/assert@^1",
-    "@ato/shared": "../shared/src/types/index.ts"
-  },
-  "compilerOptions": {
-    "strict": true,
-    "lib": ["deno.ns", "deno.unstable"]
+  "devDependencies": {
+    "wrangler": "^4",
+    "@cloudflare/workers-types": "^4",
+    "typescript": "^5"
   }
 }
 ```
 
-### 5.2 .env.example
+依存は wrangler と型定義のみ。フレームワークは使用しない。
+
+### 4.2 wrangler.toml
+
+```toml
+name = "ato-oauth"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+SPA_ORIGIN = "https://{user}.github.io"
+```
+
+`GITHUB_CLIENT_ID` と `GITHUB_CLIENT_SECRET` は `wrangler secret put` コマンドで設定する (wrangler.toml には含めない)。
+
+### 4.3 .dev.vars.example
 
 ```
 GITHUB_CLIENT_ID=your_oauth_client_id
 GITHUB_CLIENT_SECRET=your_oauth_client_secret
 SPA_ORIGIN=http://localhost:5173
-BFF_ORIGIN=http://localhost:8000
-DATASTORE_REPO_NAME=ato-datastore
-SESSION_TTL_HOURS=24
 ```
+
+ローカル開発時は `.dev.vars` にコピーして値を設定する。`.dev.vars` は `.gitignore` 対象。
+
+### 4.4 tsconfig.json
+
+```json
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["@cloudflare/workers-types"],
+    "jsx": "react-jsx",
+    "lib": ["ES2023"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+`DOM` ライブラリは不要 (Workers 環境)。`@cloudflare/workers-types` で Workers API の型を提供。
 
 ---
 
-## 6. 開発ワークフロー
+## 5. 開発ワークフロー
 
-### 6.1 初期セットアップ
+### 5.1 初期セットアップ
 
 ```bash
 # リポジトリクローン
 git clone <repo-url> && cd ato
 
-# Node.js パッケージインストール
+# パッケージインストール
 pnpm install
 
-# Deno 依存 (キャッシュ)
-cd packages/bff && deno cache src/main.ts && cd ../..
-
-# 環境変数
-cp packages/bff/.env.example packages/bff/.env
-# .env を編集: GitHub OAuth App の設定値を入力
+# OAuth Proxy 環境変数
+cp apps/oauth-proxy/.dev.vars.example apps/oauth-proxy/.dev.vars
+# .dev.vars を編集: GitHub OAuth App の設定値を入力
 ```
 
-### 6.2 開発サーバー起動
+### 5.2 開発サーバー起動
 
-ターミナル 1: BFF
+ターミナル 1: OAuth Proxy
 
 ```bash
-cd packages/bff && deno task dev
+pnpm dev:proxy
+# -> http://localhost:8787 で起動
 ```
 
 ターミナル 2: SPA
 
 ```bash
 pnpm dev
+# -> http://localhost:5173 で起動
+# /auth/* は Vite proxy 経由で OAuth Proxy に転送
 ```
 
-SPA (localhost:5173) -> BFF (localhost:8000) は Vite proxy で接続。
+SPA (localhost:5173) -> OAuth Proxy (localhost:8787) は Vite proxy で `/auth` を接続。
+SPA -> GitHub API (`https://api.github.com`) は直接通信 (CORS サポート)。
 
-### 6.3 テスト
+### 5.3 テスト
 
 ```bash
 # SPA テスト
@@ -531,24 +506,26 @@ pnpm test
 
 # SPA カバレッジ
 pnpm --filter @ato/spa test:coverage
-
-# BFF テスト
-cd packages/bff && deno task test
 ```
 
-### 6.4 ビルド
+OAuth Proxy はロジックが極めて少ない (~50 行) ため、手動テストで十分。
+必要に応じて将来テストを追加する。
+
+### 5.4 ビルド
 
 ```bash
 # SPA ビルド (GitHub Pages 用)
 pnpm build
-# -> packages/spa/dist/
+# -> apps/spa/dist/
 
-# BFF は Deno Deploy が直接デプロイ (ビルド不要)
+# OAuth Proxy デプロイ
+pnpm --filter @ato/oauth-proxy deploy
+# -> wrangler deploy で Cloudflare Workers にデプロイ
 ```
 
 ---
 
-## 7. ブラウザ互換性
+## 6. ブラウザ互換性
 
 対象ブラウザ: 最新主要ブラウザの現行バージョン。
 
@@ -564,7 +541,7 @@ TypeScript の `target: ES2023` で主要ブラウザはすべてカバーされ
 
 ---
 
-## 8. .gitignore
+## 7. .gitignore
 
 ```
 # Dependencies
@@ -574,12 +551,12 @@ node_modules/
 # Build
 dist/
 build/
-.next/
 
 # Environment
 .env
 .env.local
 .env.*.local
+.dev.vars
 
 # IDE
 .vscode/
@@ -599,6 +576,6 @@ coverage/
 # Logs
 *.log
 
-# Deno
-.deno/
+# Cloudflare Workers
+.wrangler/
 ```

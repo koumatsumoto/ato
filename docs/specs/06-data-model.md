@@ -2,7 +2,8 @@
 
 ## 概要
 
-ATO は独自の DB を持たない。TODO データは GitHub Issues に、セッション情報は Deno KV に保存する。
+ATO は独自の DB を持たない。TODO データは GitHub Issues に保存する。
+認証トークンとキャッシュは SPA の localStorage に保存する。
 
 ---
 
@@ -11,7 +12,7 @@ ATO は独自の DB を持たない。TODO データは GitHub Issues に、セ�
 ### 1.1 Todo 型定義
 
 ```typescript
-/** SPA / BFF 共通の Todo 型 (packages/shared) */
+/** SPA 内部の Todo 型 (apps/spa/src/types/todo.ts) */
 interface Todo {
   readonly id: number; // GitHub Issue number (#1, #2, ...)
   readonly title: string; // Issue title (1-256 文字)
@@ -40,6 +41,7 @@ interface Todo {
 ### 1.3 GitHub Issue -> Todo 変換
 
 ```typescript
+// SPA: features/todos/lib/issue-mapper.ts
 function mapIssueToTodo(issue: GitHubIssue): Todo {
   return {
     id: issue.number,
@@ -73,38 +75,49 @@ interface UpdateTodoInput {
 
 ---
 
-## 2. API レスポンス型 (共有)
+## 2. GitHub API レスポンス型
+
+SPA が GitHub REST API を直接呼び出すため、GitHub のレスポンス型を定義する。
 
 ```typescript
-/** 標準 API レスポンスエンベロープ */
-interface ApiResponse<T> {
-  readonly success: boolean;
-  readonly data?: T;
-  readonly error?: {
-    readonly code: string;
-    readonly message: string;
-  };
+// apps/spa/src/types/github.ts
+
+/** GitHub Issue (REST API レスポンス) */
+interface GitHubIssue {
+  readonly number: number;
+  readonly title: string;
+  readonly body: string | null;
+  readonly state: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+  readonly closed_at: string | null;
+  readonly html_url: string;
+  readonly pull_request?: unknown; // PR の場合のみ存在
 }
 
-/** ページネーション付きレスポンス */
-interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  readonly meta?: {
-    readonly hasNextPage: boolean;
-    readonly nextCursor?: string; // base64 エンコードされたページ番号
-    readonly rateLimit: {
-      readonly remaining: number;
-      readonly resetAt: string; // ISO 8601
-    };
-  };
+/** GitHub User (REST API レスポンス) */
+interface GitHubUser {
+  readonly login: string;
+  readonly id: number;
+  readonly avatar_url: string;
+}
+
+/** GitHub Repository (REST API レスポンス) */
+interface GitHubRepository {
+  readonly full_name: string;
+  readonly private: boolean;
+  readonly has_issues: boolean;
 }
 ```
 
 ---
 
-## 3. 認証関連型 (共有)
+## 3. 認証関連型
 
 ```typescript
-/** ユーザー情報 */
+// apps/spa/src/types/auth.ts
+
+/** ユーザー情報 (SPA 内部表現) */
 interface AuthUser {
   readonly login: string; // GitHub ユーザー名
   readonly id: number; // GitHub ユーザー ID
@@ -114,69 +127,15 @@ interface AuthUser {
 
 ---
 
-## 4. Deno KV スキーマ (BFF 内部)
+## 4. localStorage スキーマ
 
-### 4.1 セッション
+| キー                   | 値の型   | 説明                         | 設定タイミング      |
+| ---------------------- | -------- | ---------------------------- | ------------------- |
+| `ato:token`            | `string` | GitHub access_token          | OAuth 認証成功時    |
+| `ato:user`             | `JSON`   | AuthUser のキャッシュ (任意) | ユーザー情報取得時  |
+| `ato:repo-initialized` | `"true"` | リポジトリ存在確認済みフラグ | リポ確認/作成成功時 |
 
-```
-Key:   ["sessions", <sessionToken>]
-Value: Session
-TTL:   24 時間
-```
-
-```typescript
-interface Session {
-  readonly githubAccessToken: string;
-  readonly githubLogin: string;
-  readonly githubId: number;
-  readonly createdAt: string; // ISO 8601
-  readonly expiresAt: string; // ISO 8601
-}
-```
-
-- sessionToken: 32 byte ランダム hex (64 文字)
-- スライディング有効期限: 残り 12 時間未満の場合、リクエスト時に 24 時間延長
-
-### 4.2 OAuth State (CSRF 対策)
-
-```
-Key:   ["oauth_states", <state>]
-Value: OAuthState
-TTL:   10 分
-```
-
-```typescript
-interface OAuthState {
-  readonly createdAt: string;
-  readonly spaOrigin: string; // postMessage のターゲットオリジン
-}
-```
-
-### 4.3 リポジトリ初期化キャッシュ
-
-```
-Key:   ["repo_initialized", <githubLogin>]
-Value: RepoInitStatus
-TTL:   7 日
-```
-
-```typescript
-interface RepoInitStatus {
-  readonly initialized: boolean;
-  readonly repoFullName: string; // "user/ato-datastore"
-  readonly initializedAt: string;
-}
-```
-
-### 4.4 ユーザーキャッシュ
-
-```
-Key:   ["user_cache", <githubLogin>]
-Value: AuthUser
-TTL:   5 分
-```
-
-`GET /auth/me` のレスポンスをキャッシュし、GitHub API 呼び出しを削減。
+ログアウト時は上記 3 キーを全て削除する。
 
 ---
 
@@ -184,23 +143,23 @@ TTL:   5 分
 
 ### 5.1 概要
 
-ユーザーが初めて TODO 操作を行う際、`ato-datastore` リポジトリが存在しない場合は自動作成する。
+ユーザーが初めて TODO 操作を行う際、`ato-datastore` リポジトリが存在しない場合は SPA が自動作成する。
 
 ### 5.2 フロー
 
 ```
-認証済みリクエスト (/todos/*)
+認証済みリクエスト (SPA -> GitHub API)
   |
   v
-Deno KV ["repo_initialized", login] を確認
+localStorage "ato:repo-initialized" を確認
   |
-  +-- キャッシュあり --> そのまま処理続行
+  +-- "true" --> そのまま処理続行
   |
-  +-- キャッシュなし --> GitHub API で確認
+  +-- 未設定 --> GitHub API で確認
        |
        +-- GET /repos/{login}/ato-datastore
        |
-       +-- 200 (存在する) --> Deno KV にキャッシュ --> 処理続行
+       +-- 200 (存在する) --> localStorage にキャッシュ --> 処理続行
        |
        +-- 404 (存在しない) --> リポジトリ作成
             |
@@ -215,9 +174,9 @@ Deno KV ["repo_initialized", login] を確認
               has_wiki: false
             }
             |
-            +-- 201 --> Deno KV にキャッシュ --> 処理続行
+            +-- 201 --> localStorage にキャッシュ --> 処理続行
             +-- 422 (既存) --> 成功として扱い、キャッシュ
-            +-- その他エラー --> 503 REPO_CREATION_FAILED
+            +-- その他エラー --> エラー表示
 ```
 
 ### 5.3 リポジトリ設定
@@ -244,24 +203,23 @@ Deno KV ["repo_initialized", login] を確認
 | リポジトリ初期化                 | 1-2 回 (キャッシュ後は 0) |
 
 個人利用であれば、レート制限に達することはほぼない。
-BFF レスポンスの `meta.rateLimit` で残りリクエスト数を SPA に通知する。
+SPA は GitHub API レスポンスの `X-RateLimit-Remaining` ヘッダーを読み取り、残り少ない場合に警告を表示する。
 
 ---
 
 ## 7. ページネーション
 
 GitHub Issues API はページベースのページネーション (`Link` ヘッダー) を採用。
-BFF はこれをカーソルベースに変換して SPA に提供する。
-
-- カーソル: GitHub のページ番号を base64 エンコードした文字列
-- `hasNextPage`: `Link` ヘッダーの `rel="next"` 有無で判定
-- `nextCursor`: 次ページ番号の base64 エンコード
+SPA が `Link` ヘッダーを解析し、次ページの有無と番号を取得する。
 
 ```
 GitHub Link ヘッダー:
   <...?page=2>; rel="next", <...?page=5>; rel="last"
 
-BFF レスポンス:
-  meta.hasNextPage: true
-  meta.nextCursor: "Mg=="  (= "2" の base64)
+SPA が解析:
+  hasNextPage: true
+  nextPage: 2
 ```
+
+TanStack Query の `useInfiniteQuery` と組み合わせ、
+`getNextPageParam` で次ページ番号を返すことで「Load more」ボタンを実現する。
