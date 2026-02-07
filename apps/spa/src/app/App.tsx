@@ -1,7 +1,11 @@
+import { RouterProvider } from "react-router";
+import { AppProviders } from "./providers";
+import { router } from "./router";
+
 export function App() {
   return (
-    <div>
-      <h1>ATO</h1>
-    </div>
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
   );
 }

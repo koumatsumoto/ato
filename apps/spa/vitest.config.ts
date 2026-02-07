@@ -7,7 +7,7 @@ export default defineConfig({
     globals: true,
     passWithNoTests: true,
     setupFiles: ["./src/shared/__tests__/setup.ts"],
-    include: ["src/features/**/__tests__/**/*.test.{ts,tsx}", "src/shared/__tests__/**/*.test.{ts,tsx}"],
+    include: ["src/**/__tests__/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
