@@ -1,4 +1,5 @@
-import { AuthError, NetworkError } from "@/types";
+import { AuthError, NetworkError, RateLimitError } from "@/types";
+import { extractRateLimit, isRateLimited } from "@/shared/lib/rate-limit";
 
 const GITHUB_API = "https://api.github.com";
 
@@ -26,6 +27,11 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
   if (response.status === 401) {
     localStorage.removeItem("ato:token");
     throw new AuthError("Token expired or revoked");
+  }
+
+  if (isRateLimited(response)) {
+    const { resetAt } = extractRateLimit(response.headers);
+    throw new RateLimitError(resetAt);
   }
 
   return response;

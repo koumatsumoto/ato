@@ -4,9 +4,10 @@ import { TodoItem } from "@/features/todos/components/TodoItem";
 import { TodoEmptyState } from "@/features/todos/components/TodoEmptyState";
 import { CompletedLink } from "@/features/todos/components/CompletedLink";
 import { ListSkeleton } from "@/features/todos/components/ListSkeleton";
+import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
 
 export function MainPage() {
-  const { data, isLoading, error } = useOpenTodos();
+  const { data, isLoading, error, refetch } = useOpenTodos();
   const todos = data?.todos ?? [];
 
   return (
@@ -15,9 +16,7 @@ export function MainPage() {
       {isLoading ? (
         <ListSkeleton />
       ) : error ? (
-        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error.message}
-        </div>
+        <ErrorBanner error={error} onRetry={() => void refetch()} />
       ) : todos.length === 0 ? (
         <TodoEmptyState />
       ) : (

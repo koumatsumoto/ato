@@ -4,11 +4,12 @@ import { useTodo, useUpdateTodo } from "@/features/todos/hooks/use-todos";
 import { CompletionToggle } from "@/features/todos/components/CompletionToggle";
 import { DetailSkeleton } from "@/features/todos/components/DetailSkeleton";
 import { NotFound } from "@/shared/components/ui/NotFound";
+import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
 
 export function DetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: todo, isLoading } = useTodo(Number(id));
+  const { data: todo, isLoading, error, refetch } = useTodo(Number(id));
   const updateTodo = useUpdateTodo();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -27,6 +28,7 @@ export function DetailPage() {
   };
 
   if (isLoading) return <DetailSkeleton />;
+  if (error) return <ErrorBanner error={error} onRetry={() => void refetch()} />;
   if (!todo) return <NotFound />;
 
   return (

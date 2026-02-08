@@ -2,9 +2,10 @@ import { Link } from "react-router";
 import { useClosedTodos } from "@/features/todos/hooks/use-todos";
 import { TodoItem } from "@/features/todos/components/TodoItem";
 import { ListSkeleton } from "@/features/todos/components/ListSkeleton";
+import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
 
 export function CompletedPage() {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useClosedTodos();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error, refetch } = useClosedTodos();
 
   const todos = data?.pages.flatMap((page) => page.todos) ?? [];
 
@@ -18,6 +19,8 @@ export function CompletedPage() {
       </div>
       {isLoading ? (
         <ListSkeleton />
+      ) : error ? (
+        <ErrorBanner error={error} onRetry={() => void refetch()} />
       ) : todos.length === 0 ? (
         <p className="py-8 text-center text-gray-400">No completed todos</p>
       ) : (

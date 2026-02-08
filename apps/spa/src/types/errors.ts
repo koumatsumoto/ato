@@ -20,6 +20,13 @@ export class NotFoundError extends Error {
   override readonly name = "NotFoundError" as const;
 }
 
+export class RateLimitError extends Error {
+  override readonly name = "RateLimitError" as const;
+  constructor(readonly resetAt: Date) {
+    super(`GitHub API rate limit exceeded. Resets at ${resetAt.toLocaleTimeString()}`);
+  }
+}
+
 export class RepoCreationError extends Error {
   override readonly name = "RepoCreationError" as const;
 }
