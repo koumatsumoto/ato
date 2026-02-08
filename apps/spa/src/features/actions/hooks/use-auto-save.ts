@@ -39,6 +39,14 @@ export function useAutoSave({ id, title, memo, originalTitle, originalMemo, upda
     lastSavedMemoRef.current = originalMemo;
   }, [originalTitle, originalMemo]);
 
+  useEffect(() => {
+    if (lastSavedAt || !updatedAt) return;
+    const parsed = new Date(updatedAt);
+    if (!Number.isNaN(parsed.getTime())) {
+      setLastSavedAt(parsed);
+    }
+  }, [updatedAt, lastSavedAt]);
+
   const isDirty = title !== lastSavedTitleRef.current || memo !== lastSavedMemoRef.current;
 
   const debouncedTitle = useDebounce(title, DEBOUNCE_MS);

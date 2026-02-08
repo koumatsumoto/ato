@@ -52,6 +52,18 @@ describe("useAutoSave", () => {
 
       expect(result.current.lastSavedAt).toBeNull();
     });
+
+    it("sets lastSavedAt when updatedAt becomes available after initial render", () => {
+      const { result, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams({ updatedAt: "" }),
+      });
+
+      expect(result.current.lastSavedAt).toBeNull();
+
+      rerender(defaultParams({ updatedAt: "2026-01-15T10:00:00Z" }));
+
+      expect(result.current.lastSavedAt).toEqual(new Date("2026-01-15T10:00:00Z"));
+    });
   });
 
   describe("isDirty", () => {
