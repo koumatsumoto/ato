@@ -44,6 +44,7 @@ export function DetailPage() {
     memo,
     originalTitle: action?.title ?? "",
     originalMemo: action?.memo ?? "",
+    updatedAt: action?.updatedAt ?? "",
   });
 
   const savedTimeText = useRelativeTime(lastSavedAt);
@@ -58,7 +59,15 @@ export function DetailPage() {
     saveNow();
   };
 
+  const handleSaveKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      e.preventDefault();
+      saveNow();
+    }
+  };
+
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    handleSaveKeyDown(e);
     if (e.key === "Enter") {
       setIsTitleEditing(false);
       saveNow();
@@ -135,6 +144,7 @@ export function DetailPage() {
         value={memo}
         onChange={(e) => setMemo(e.target.value)}
         onBlur={handleMemoBlur}
+        onKeyDown={handleSaveKeyDown}
         placeholder="メモを追加..."
         className="w-full resize-y border-transparent bg-transparent px-0 py-2 text-sm leading-relaxed text-gray-700 focus:border-transparent focus:outline-none"
         style={{ minHeight: "calc(var(--app-height) - 250px)" }}
@@ -142,7 +152,7 @@ export function DetailPage() {
       />
       <div className="mt-1 text-right">
         {isSaving && <span className="text-xs text-gray-400">保存中...</span>}
-        {!isSaving && savedTimeText && <span className="text-xs text-gray-400">保存済み {savedTimeText}</span>}
+        {!isSaving && savedTimeText && <span className="text-xs text-gray-400">最終更新 {savedTimeText}</span>}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ interface UseAutoSaveParams {
   readonly memo: string;
   readonly originalTitle: string;
   readonly originalMemo: string;
+  readonly updatedAt: string;
 }
 
 interface UseAutoSaveResult {
@@ -18,11 +19,15 @@ interface UseAutoSaveResult {
   readonly saveNow: () => void;
 }
 
-const DEBOUNCE_MS = 10_000;
+const DEBOUNCE_MS = 3_000;
 
-export function useAutoSave({ id, title, memo, originalTitle, originalMemo }: UseAutoSaveParams): UseAutoSaveResult {
+export function useAutoSave({ id, title, memo, originalTitle, originalMemo, updatedAt }: UseAutoSaveParams): UseAutoSaveResult {
   const updateAction = useUpdateAction();
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(() => {
+    if (!updatedAt) return null;
+    const parsed = new Date(updatedAt);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  });
   const saveVersionRef = useRef(0);
   const lastSavedTitleRef = useRef(originalTitle);
   const lastSavedMemoRef = useRef(originalMemo);
