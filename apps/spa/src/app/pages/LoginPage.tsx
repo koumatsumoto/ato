@@ -28,7 +28,7 @@ export function LoginPage() {
       <div className="w-full max-w-sm space-y-6 text-center">
         <img src={`${import.meta.env.BASE_URL}logo.png`} alt="ATO" className="mx-auto h-24 w-24" />
         <h1 className="text-3xl font-bold">ATO</h1>
-        <p className="text-gray-500">GitHub Issues で動く行動記録アプリ</p>
+        <p className="text-gray-500">日々の跡を残すメモアプリ</p>
         {error && (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}

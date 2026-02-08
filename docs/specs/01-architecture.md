@@ -2,7 +2,7 @@
 
 ## 概要
 
-ATO は GitHub Issues をデータストアとする超軽量 TODO アプリ。
+ATO は日々の跡を残すメモアプリ。GitHub Issues をデータストアとして使用。
 SPA (GitHub Pages) がビジネスロジックの全てを担い、OAuth Proxy (Cloudflare Workers) は GitHub OAuth の認証代行のみを行う。
 
 ---

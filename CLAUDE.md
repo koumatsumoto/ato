@@ -1,6 +1,6 @@
-# ATO - 行動記録アプリ
+# ATO - 日々の跡を残すメモアプリ
 
-GitHub Issues をバックエンドに使う行動記録アプリ。1 Issue = 1 行動(Action)。
+GitHub Issues をバックエンドに使うメモアプリ。1 Issue = 1 行動(Action)。
 用語の詳細は `docs/specs/10-terminology.md` を参照。
 
 ## テックスタック

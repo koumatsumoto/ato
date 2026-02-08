@@ -1,6 +1,6 @@
 # ATO
 
-GitHub Issues をバックエンドに使うシンプルな TODO アプリ。
+日々の跡を残すメモアプリ。GitHub Issues をバックエンドに使用。
 
 ## アーキテクチャ
 

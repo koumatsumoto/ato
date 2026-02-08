@@ -94,7 +94,7 @@ ato/
   "name": "@ato/monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "ATO - Simple TODO app backed by GitHub Issues",
+  "description": "ATO - A memo app to leave daily traces",
   "scripts": {
     "dev": "pnpm --filter @ato/spa dev",
     "dev:proxy": "pnpm --filter @ato/oauth-proxy dev",
