@@ -3,4 +3,4 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
 [vars]
-SPA_ORIGIN = "https://{user}.github.io"
+SPA_ORIGIN = "https://koumatsumoto.github.io"

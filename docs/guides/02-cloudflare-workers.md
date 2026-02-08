@@ -45,6 +45,24 @@ npx wrangler deploy
 
 初回実行時に Cloudflare ログインを求められる場合がある。Workers プロジェクト `ato-oauth` が自動作成される。
 
+#### WSL 環境での認証
+
+WSL ではブラウザからの OAuth コールバックが WSL 内のプロセスに到達できないため、対話的ログインが失敗する。手順 2 で作成した API トークンを環境変数に設定して回避する:
+
+```bash
+export CLOUDFLARE_API_TOKEN=<手順 2 で控えたトークン>
+npx wrangler deploy
+```
+
+永続化する場合は `~/.bashrc` に追加:
+
+```bash
+echo 'export CLOUDFLARE_API_TOKEN=<トークン>' >> ~/.bashrc
+source ~/.bashrc
+```
+
+この環境変数は `wrangler deploy` および `wrangler secret put` の両方で有効。
+
 ### 5. Secrets 設定
 
 本番用の GitHub OAuth App の認証情報を設定:

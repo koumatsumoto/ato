@@ -30,6 +30,14 @@ GITHUB_CLIENT_SECRET=<開発用 Client Secret>
 SPA_ORIGIN=http://localhost:5173
 ```
 
+### 3. SPA のローカル環境変数を設定
+
+`apps/spa/.env` を作成:
+
+```bash
+echo 'VITE_OAUTH_PROXY_URL=http://localhost:8787' > apps/spa/.env
+```
+
 ---
 
 ## 開発サーバー起動
