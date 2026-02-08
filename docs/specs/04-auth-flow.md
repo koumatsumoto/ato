@@ -2,8 +2,11 @@
 
 ## 概要
 
-GitHub OAuth App を使用した認証。SPA と OAuth Proxy が別オリジンのため、popup + postMessage パターンを採用する。
+GitHub App を使用した認証。SPA と OAuth Proxy が別オリジンのため、popup + postMessage パターンを採用する。
 access_token は SPA の localStorage に保存し、SPA から GitHub API を直接呼び出す。
+トークンは無期限（Expire user authorization tokens: 無効）。
+
+> 移行の背景と詳細は [11-github-app-migration.md](./11-github-app-migration.md) を参照。
 
 ---
 
@@ -21,12 +24,12 @@ SPA (*.github.io)              OAuth Proxy (CF Workers)         GitHub
      |                              |  (3) 302 Redirect            |
      |                              |----> github.com/login/ ----->|
      |                              |      oauth/authorize         |
-     |                              |      ?client_id=...          |
+     |                              |      ?client_id=Iv23li...    |
      |                              |      &redirect_uri=.../callback
-     |                              |      &scope=repo             |
      |                              |      &state={random}         |
      |                              |                              |
-     |                              |                    ユーザー認可
+     |                              |              ユーザー認可    |
+     |                              |              (App 権限表示)  |
      |                              |                              |
      |                              |  (4) GitHub redirect         |
      |                              |<---- GET /auth/callback -----|
@@ -92,8 +95,8 @@ function handleLogin(url: URL, env: Env): Response {
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
     redirect_uri: `${url.origin}/auth/callback`,
-    scope: "repo",
     state,
+    // GitHub App では scope パラメータ不要
   });
 
   return new Response(null, {
@@ -106,10 +109,10 @@ function handleLogin(url: URL, env: Env): Response {
 }
 ```
 
-**OAuth スコープ: `repo`**
+**GitHub App パーミッション:**
 
-- `repo` スコープで private リポジトリの Issue 読み書きが可能
-- 他のスコープは不要 (最小権限の原則)
+- Issues: Read & Write（App 登録時に定義済み）
+- Metadata: Read-only（自動付与）
 
 ### Step 4-5: コールバックで state を検証
 
@@ -175,12 +178,12 @@ return new Response(
 
 ### 3.1 トークン仕様
 
-| 項目       | 仕様                                                     |
-| ---------- | -------------------------------------------------------- |
-| 形式       | GitHub が発行する `gho_` プレフィックスの access_token   |
-| SPA 保存先 | `localStorage` key: `"ato:token"`                        |
-| 送信方法   | GitHub API への `Authorization: Bearer {token}` ヘッダー |
-| 有効期限   | 無期限 (OAuth App のため。ユーザーが取り消すまで有効)    |
+| 項目       | 仕様                                                          |
+| ---------- | ------------------------------------------------------------- |
+| 形式       | GitHub App user access token (`ghu_` プレフィックス)          |
+| SPA 保存先 | `localStorage` key: `"ato:token"`                             |
+| 送信方法   | GitHub API への `Authorization: Bearer {token}` ヘッダー      |
+| 有効期限   | 無期限 (Expire user tokens: 無効。ユーザーが取り消すまで有効) |
 
 ### 3.2 トークン無効化の検知
 
@@ -191,7 +194,7 @@ SPA: GitHub API 呼び出し
   -> 401 Unauthorized
   -> localStorage から token をクリア
   -> ログイン画面へ遷移
-  -> ユーザーが再ログイン (既に OAuth 認可済みなら GitHub は即座にリダイレクト)
+  -> ユーザーが再ログイン (既に認可済みなら GitHub は即座にリダイレクト)
 ```
 
 ---
@@ -281,12 +284,12 @@ SPA:
 
 ## 6. セキュリティ考慮事項
 
-| 脅威                   | 対策                                             |
-| ---------------------- | ------------------------------------------------ |
-| CSRF (OAuth フロー)    | `state` パラメータ + HttpOnly Cookie で検証      |
-| トークン漏洩 (XSS)     | CSP ヘッダーで軽減。localStorage のリスクは許容  |
-| postMessage なりすまし | オリジン検証 (`event.origin` チェック)           |
-| token 窃取             | access_token は localStorage に保存 (XSS リスク) |
+| 脅威                   | 対策                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| CSRF (OAuth フロー)    | `state` パラメータ + HttpOnly Cookie で検証                                                              |
+| トークン漏洩 (XSS)     | CSP ヘッダーで軽減。localStorage のリスクは許容                                                          |
+| postMessage なりすまし | オリジン検証 (`event.origin` チェック)                                                                   |
+| token 窃取             | access_token は localStorage に保存 (XSS リスク)。権限が Issues のみに限定されているため影響範囲は限定的 |
 
 詳細は [08-security.md](./08-security.md) を参照。
 
@@ -308,4 +311,5 @@ export default defineConfig({
 });
 ```
 
-GitHub OAuth App の設定で `Authorization callback URL` に `http://localhost:8787/auth/callback` を登録する。
+GitHub App の設定で Callback URL に `http://localhost:8787/auth/callback` を追加する。
+GitHub App は複数の Callback URL を登録可能（最大 10 個）。
