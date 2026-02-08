@@ -30,9 +30,12 @@ export function Header() {
               <img src={state.user.avatarUrl} alt="" className="h-7 w-7 rounded-full" />
             </button>
             {isMenuOpen && (
-              <div className="animate-fadeIn absolute right-0 top-full mt-2 w-48 rounded-lg bg-white py-1 shadow-xl">
+              <div className="animate-fadeIn absolute right-0 top-full z-50 mt-2 w-48 rounded-lg bg-white py-2 shadow-xl">
                 <div className="border-b border-gray-200 px-4 py-2">
-                  <p className="text-xs text-gray-500">{state.user.login}</p>
+                  <div className="flex items-center gap-1.5">
+                    <img src={`${import.meta.env.BASE_URL}github.png`} alt="" className="h-3.5 w-3.5" />
+                    <p className="text-xs text-gray-500">{state.user.login}</p>
+                  </div>
                 </div>
                 <button
                   onClick={() => {
@@ -43,7 +46,7 @@ export function Header() {
                 >
                   ログアウト
                 </button>
-                <div className="border-t border-gray-200 px-4 py-1.5">
+                <div className="border-t border-gray-200 px-4 pb-0 pt-2">
                   <p className="text-[10px] text-gray-400">version: {__APP_VERSION__}</p>
                 </div>
               </div>

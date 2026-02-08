@@ -53,7 +53,7 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
   }
 
   return (
-    <div className="animate-fadeIn space-y-2">
+    <div className="animate-fadeIn space-y-2 py-2">
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <svg
@@ -84,8 +84,10 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
           </svg>
         </button>
       </div>
-      <LabelFilter selectedLabel={labelFilter} onChange={handleLabelFilterChange} />
-      <label className="flex items-center gap-2 text-sm text-gray-500">
+      <div className="pl-2">
+        <LabelFilter selectedLabel={labelFilter} onChange={handleLabelFilterChange} />
+      </div>
+      <label className="flex items-center gap-2 pl-2 text-sm text-gray-500">
         <input type="checkbox" checked={includeCompleted} onChange={(e) => handleIncludeCompletedChange(e.target.checked)} className="rounded" />
         完了を表示
       </label>
