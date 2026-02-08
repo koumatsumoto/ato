@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { MainPage } from "../MainPage";
 import type { Action } from "@/types";
+import { RepoNotConfiguredError } from "@/types";
 import { makeAction } from "@/shared/__tests__/factories";
 
 const mockRefetch = vi.fn();
@@ -90,5 +91,41 @@ describe("MainPage", () => {
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("Network error");
+  });
+
+  it("shows SetupGuide when RepoNotConfiguredError occurs", () => {
+    mockOpenActionsReturn = {
+      ...mockOpenActionsReturn,
+      data: undefined,
+      isLoading: false,
+      error: new RepoNotConfiguredError(),
+    };
+
+    render(
+      <MemoryRouter>
+        <MainPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("初回セットアップ")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /リポジトリを作成/ })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("hides ActionAddForm when RepoNotConfiguredError occurs", () => {
+    mockOpenActionsReturn = {
+      ...mockOpenActionsReturn,
+      data: undefined,
+      isLoading: false,
+      error: new RepoNotConfiguredError(),
+    };
+
+    render(
+      <MemoryRouter>
+        <MainPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { GitHubApiError, RepoCreationError } from "@/types";
+import { GitHubApiError, RepoNotConfiguredError } from "@/types";
 
 describe("ensureRepository", () => {
   const originalFetch = globalThis.fetch;
@@ -40,39 +40,13 @@ describe("ensureRepository", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("creates repo on 404 and sets flag", async () => {
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValueOnce(new Response("Not Found", { status: 404 }))
-      .mockResolvedValueOnce(new Response("{}", { status: 201 }));
-    globalThis.fetch = mockFetch;
+  it("throws RepoNotConfiguredError on 404", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("Not Found", { status: 404 }));
 
     const ensureRepository = await loadEnsureRepository();
-    await ensureRepository("testuser");
+    await expect(ensureRepository("testuser")).rejects.toThrow(RepoNotConfiguredError);
 
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(localStorage.getItem("ato:repo-initialized")).toBe("true");
-
-    // Verify creation request body
-    const [, createOptions] = mockFetch.mock.calls[1] as [string, RequestInit];
-    const body = JSON.parse(createOptions.body as string);
-    expect(body.name).toBe("ato-datastore");
-    expect(body.private).toBe(true);
-    expect(body.has_issues).toBe(true);
-    expect(body.auto_init).toBe(true);
-  });
-
-  it("handles 422 (already exists) as success", async () => {
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValueOnce(new Response("Not Found", { status: 404 }))
-      .mockResolvedValueOnce(new Response('{"message":"already exists"}', { status: 422 }));
-    globalThis.fetch = mockFetch;
-
-    const ensureRepository = await loadEnsureRepository();
-    await ensureRepository("testuser");
-
-    expect(localStorage.getItem("ato:repo-initialized")).toBe("true");
+    expect(localStorage.getItem("ato:repo-initialized")).toBeNull();
   });
 
   it("throws GitHubApiError on non-404 check failure", async () => {
@@ -80,16 +54,5 @@ describe("ensureRepository", () => {
 
     const ensureRepository = await loadEnsureRepository();
     await expect(ensureRepository("testuser")).rejects.toThrow(GitHubApiError);
-  });
-
-  it("throws RepoCreationError on creation failure", async () => {
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValueOnce(new Response("Not Found", { status: 404 }))
-      .mockResolvedValueOnce(new Response('{"message":"error"}', { status: 500 }));
-    globalThis.fetch = mockFetch;
-
-    const ensureRepository = await loadEnsureRepository();
-    await expect(ensureRepository("testuser")).rejects.toThrow(RepoCreationError);
   });
 });

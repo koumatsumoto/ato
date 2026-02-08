@@ -6,7 +6,9 @@ import { ActionItem } from "@/features/actions/components/ActionItem";
 import { ActionEmptyState } from "@/features/actions/components/ActionEmptyState";
 import { SearchPanel } from "@/features/actions/components/SearchPanel";
 import { ListSkeleton } from "@/features/actions/components/ListSkeleton";
+import { SetupGuide } from "@/features/actions/components/SetupGuide";
 import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
+import { RepoNotConfiguredError } from "@/types";
 
 export function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,6 +20,7 @@ export function MainPage() {
   const isSearching = searchQuery.trim().length > 0;
   const activeQuery = isSearching ? searchResult : openActions;
   const actions = isSearching ? (searchResult.data ?? []) : (openActions.data?.actions ?? []);
+  const isRepoNotConfigured = activeQuery.error instanceof RepoNotConfiguredError;
 
   const handleSearchChange = (query: string, completed: boolean) => {
     setSearchQuery(query);
@@ -30,6 +33,8 @@ export function MainPage() {
         <SearchPanel onSearchChange={handleSearchChange} />
         {activeQuery.isLoading ? (
           <ListSkeleton />
+        ) : isRepoNotConfigured ? (
+          <SetupGuide />
         ) : activeQuery.error ? (
           <ErrorBanner error={activeQuery.error} onRetry={() => void activeQuery.refetch()} />
         ) : actions.length === 0 ? (
@@ -46,7 +51,7 @@ export function MainPage() {
           </div>
         )}
       </div>
-      <ActionAddForm />
+      {!isRepoNotConfigured && <ActionAddForm />}
     </div>
   );
 }

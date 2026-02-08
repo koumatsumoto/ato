@@ -85,7 +85,7 @@ describe("OAuth Proxy Worker", () => {
       expect(location.pathname).toBe("/login/oauth/authorize");
       expect(location.searchParams.get("client_id")).toBe(TEST_ENV.GITHUB_CLIENT_ID);
       expect(location.searchParams.get("redirect_uri")).toBe("http://localhost:8787/auth/callback");
-      expect(location.searchParams.get("scope")).toBe("repo");
+      expect(location.searchParams.has("scope")).toBe(false);
       expect(location.searchParams.get("state")).toBe(FIXED_STATE);
     });
 
