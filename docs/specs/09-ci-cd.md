@@ -296,3 +296,5 @@ npx wrangler secret put GITHUB_CLIENT_SECRET
 1. SPA: `https://{user}.github.io/ato` にアクセス
 2. OAuth Proxy: `https://ato-oauth.{user}.workers.dev/auth/login` でGitHub OAuth ページにリダイレクトされること
 3. ログインフローが正常に動作すること
+
+> 各ステップの詳細な手順は [docs/guides/](../guides/) を参照。
