@@ -66,6 +66,21 @@ describe("Header", () => {
     expect(screen.getByText("testuser")).toBeInTheDocument();
   });
 
+  it("shows version in dropdown menu", async () => {
+    mockAuthState = {
+      token: "t",
+      user: { login: "testuser", id: 1, avatarUrl: "https://example.com/avatar.jpg" },
+      isLoading: false,
+    };
+    const user = userEvent.setup();
+
+    render(<Header />);
+
+    await user.click(screen.getByLabelText("メニュー"));
+
+    expect(screen.getByText("v:test000")).toBeInTheDocument();
+  });
+
   it("calls logout on menu logout button click", async () => {
     mockAuthState = {
       token: "t",

@@ -2,6 +2,9 @@ import { defineConfig } from "vitest/config";
 import path from "path";
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify("test000"),
+  },
   test: {
     environment: "jsdom",
     globals: true,
