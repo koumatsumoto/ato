@@ -35,7 +35,7 @@ describe("Header", () => {
 
     render(<Header />);
 
-    const avatar = document.querySelector("img");
+    const avatar = document.querySelector("img.rounded-full");
     expect(avatar).toHaveAttribute("src", "https://example.com/avatar.jpg");
     expect(screen.getByText("Logout")).toBeInTheDocument();
   });
@@ -43,7 +43,7 @@ describe("Header", () => {
   it("does not show avatar or logout when user is null", () => {
     render(<Header />);
 
-    expect(document.querySelector("img")).toBeNull();
+    expect(document.querySelector("img.rounded-full")).toBeNull();
     expect(screen.queryByText("Logout")).not.toBeInTheDocument();
   });
 

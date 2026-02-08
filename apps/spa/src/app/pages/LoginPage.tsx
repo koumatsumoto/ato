@@ -26,6 +26,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm space-y-6 text-center">
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="ATO" className="mx-auto h-24 w-24" />
         <h1 className="text-3xl font-bold">ATO</h1>
         <p className="text-gray-500">Simple TODO app powered by GitHub Issues</p>
         {error && (
