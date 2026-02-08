@@ -11,12 +11,12 @@
     "dev": "pnpm --filter @ato/spa dev",
     "dev:proxy": "pnpm --filter @ato/oauth-proxy dev",
     "build": "pnpm --filter @ato/spa build",
-    "test": "pnpm --filter @ato/spa test",
+    "test": "pnpm --filter @ato/spa test && pnpm --filter @ato/oauth-proxy test",
     "lint": "pnpm --filter @ato/spa lint",
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json}\"",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
-    "typecheck": "pnpm --filter @ato/spa typecheck",
+    "typecheck": "pnpm --filter @ato/spa typecheck && pnpm --filter @ato/oauth-proxy typecheck",
     "prepare": "husky"
   },
   "prettier": {
