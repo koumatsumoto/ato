@@ -74,6 +74,7 @@ export function useCreateAction() {
             updatedAt: new Date().toISOString(),
             closedAt: null,
             url: "",
+            labels: input.labels ?? [],
           },
           ...(old?.actions ?? []),
         ],

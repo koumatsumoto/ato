@@ -1,13 +1,15 @@
 import { useRef, useState } from "react";
+import { LabelFilter } from "./LabelFilter";
 
 interface SearchPanelProps {
-  readonly onSearchChange: (query: string, includeCompleted: boolean) => void;
+  readonly onSearchChange: (query: string, includeCompleted: boolean, label: string) => void;
 }
 
 export function SearchPanel({ onSearchChange }: SearchPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
+  const [labelFilter, setLabelFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleOpen = () => {
@@ -19,17 +21,23 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
     setIsOpen(false);
     setQuery("");
     setIncludeCompleted(false);
-    onSearchChange("", false);
+    setLabelFilter("");
+    onSearchChange("", false, "");
   };
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
-    onSearchChange(value, includeCompleted);
+    onSearchChange(value, includeCompleted, labelFilter);
   };
 
   const handleIncludeCompletedChange = (checked: boolean) => {
     setIncludeCompleted(checked);
-    onSearchChange(query, checked);
+    onSearchChange(query, checked, labelFilter);
+  };
+
+  const handleLabelFilterChange = (label: string) => {
+    setLabelFilter(label);
+    onSearchChange(query, includeCompleted, label);
   };
 
   if (!isOpen) {
@@ -76,6 +84,7 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
           </svg>
         </button>
       </div>
+      <LabelFilter selectedLabel={labelFilter} onChange={handleLabelFilterChange} />
       <label className="flex items-center gap-2 text-sm text-gray-500">
         <input type="checkbox" checked={includeCompleted} onChange={(e) => handleIncludeCompletedChange(e.target.checked)} className="rounded" />
         完了を表示

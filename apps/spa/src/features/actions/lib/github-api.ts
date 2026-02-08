@@ -56,6 +56,7 @@ export async function createAction(login: string, input: CreateActionInput): Pro
     body: JSON.stringify({
       title: input.title,
       body: input.body,
+      labels: input.labels,
     }),
   });
 

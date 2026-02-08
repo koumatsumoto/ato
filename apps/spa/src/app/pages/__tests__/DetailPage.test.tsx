@@ -40,6 +40,16 @@ vi.mock("@/shared/hooks/use-relative-time", () => ({
   useRelativeTime: () => null,
 }));
 
+vi.mock("@/features/actions/hooks/use-labels", () => ({
+  useLabels: () => ({ data: [], isLoading: false, error: null }),
+}));
+
+vi.mock("@/features/actions/lib/label-store", () => ({
+  getRecentLabels: () => [],
+  addRecentLabels: vi.fn(),
+  clearRecentLabels: vi.fn(),
+}));
+
 vi.mock("@uiball/loaders", () => ({
   Waveform: () => <div data-testid="waveform" />,
 }));

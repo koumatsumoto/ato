@@ -26,6 +26,7 @@ describe("mapIssueToAction", () => {
       updatedAt: "2026-01-02T00:00:00Z",
       closedAt: null,
       url: "https://github.com/user/repo/issues/42",
+      labels: [],
     });
   });
 
@@ -46,5 +47,45 @@ describe("mapIssueToAction", () => {
 
     expect(action.state).toBe("closed");
     expect(action.closedAt).toBe("2026-01-03T00:00:00Z");
+  });
+
+  it("maps issue with labels to action with label names", () => {
+    const issue: GitHubIssue = {
+      ...baseIssue,
+      labels: [
+        { id: 1, name: "bug", color: "d73a4a", description: null },
+        { id: 2, name: "urgent", color: "e4e669", description: "Urgent issue" },
+      ],
+    };
+    const action = mapIssueToAction(issue);
+
+    expect(action.labels).toEqual(["bug", "urgent"]);
+  });
+
+  it("maps issue without labels field to action with empty labels array", () => {
+    const action = mapIssueToAction(baseIssue);
+
+    expect(action.labels).toEqual([]);
+  });
+
+  it("maps issue with empty labels array to action with empty labels array", () => {
+    const issue: GitHubIssue = { ...baseIssue, labels: [] };
+    const action = mapIssueToAction(issue);
+
+    expect(action.labels).toEqual([]);
+  });
+
+  it("preserves label order", () => {
+    const issue: GitHubIssue = {
+      ...baseIssue,
+      labels: [
+        { id: 3, name: "zzz", color: "000000", description: null },
+        { id: 1, name: "aaa", color: "000000", description: null },
+        { id: 2, name: "mmm", color: "000000", description: null },
+      ],
+    };
+    const action = mapIssueToAction(issue);
+
+    expect(action.labels).toEqual(["zzz", "aaa", "mmm"]);
   });
 });

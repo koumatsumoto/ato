@@ -13,18 +13,20 @@ import { RepoNotConfiguredError } from "@/types";
 export function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
+  const [searchLabel, setSearchLabel] = useState("");
 
   const openActions = useOpenActions();
-  const searchResult = useSearchActions(searchQuery, includeCompleted);
+  const searchResult = useSearchActions(searchQuery, includeCompleted, searchLabel);
 
-  const isSearching = searchQuery.trim().length > 0;
+  const isSearching = searchQuery.trim().length > 0 || searchLabel.length > 0;
   const activeQuery = isSearching ? searchResult : openActions;
   const actions = isSearching ? (searchResult.data ?? []) : (openActions.data?.actions ?? []);
   const isRepoNotConfigured = activeQuery.error instanceof RepoNotConfiguredError;
 
-  const handleSearchChange = (query: string, completed: boolean) => {
+  const handleSearchChange = (query: string, completed: boolean, label: string) => {
     setSearchQuery(query);
     setIncludeCompleted(completed);
+    setSearchLabel(label);
   };
 
   return (

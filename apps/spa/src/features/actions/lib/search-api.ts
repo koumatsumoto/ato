@@ -7,9 +7,16 @@ const REPO_NAME = "ato-datastore";
 
 export async function searchActions(
   login: string,
-  params: { readonly query: string; readonly includeCompleted: boolean },
+  params: { readonly query: string; readonly includeCompleted: boolean; readonly label?: string },
 ): Promise<readonly Action[]> {
-  const qualifiers = [`repo:${login}/${REPO_NAME}`, "is:issue", params.query];
+  const qualifiers = [`repo:${login}/${REPO_NAME}`, "is:issue"];
+  if (params.query) {
+    qualifiers.push(params.query);
+  }
+  if (params.label) {
+    const sanitizedLabel = params.label.replaceAll('"', "");
+    qualifiers.push(`label:"${sanitizedLabel}"`);
+  }
   if (!params.includeCompleted) {
     qualifiers.push("state:open");
   }

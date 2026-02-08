@@ -10,5 +10,6 @@ export function mapIssueToAction(issue: GitHubIssue): Action {
     updatedAt: issue.updated_at,
     closedAt: issue.closed_at,
     url: issue.html_url,
+    labels: (issue.labels ?? []).map((label) => label.name),
   };
 }

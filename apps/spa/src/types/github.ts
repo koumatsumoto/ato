@@ -1,3 +1,10 @@
+export interface GitHubLabel {
+  readonly id: number;
+  readonly name: string;
+  readonly color: string;
+  readonly description: string | null;
+}
+
 export interface GitHubIssue {
   readonly number: number;
   readonly title: string;
@@ -8,6 +15,7 @@ export interface GitHubIssue {
   readonly closed_at: string | null;
   readonly html_url: string;
   readonly pull_request?: unknown;
+  readonly labels?: readonly GitHubLabel[];
 }
 
 export interface GitHubUser {

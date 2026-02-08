@@ -89,6 +89,19 @@ describe("github-api", () => {
       expect(action.title).toBe("New action");
     });
 
+    it("sends labels in request body when provided", async () => {
+      const created = makeIssue({ number: 10, title: "New action" });
+      const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(created), { status: 201 }));
+      globalThis.fetch = mockFetch;
+
+      const { createAction } = await loadApi();
+      await createAction("testuser", { title: "New action", labels: ["bug", "urgent"] });
+
+      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = JSON.parse(options.body as string);
+      expect(body.labels).toEqual(["bug", "urgent"]);
+    });
+
     it("throws GitHubApiError on failure", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue(new Response('{"message":"Validation Failed"}', { status: 422 }));
 

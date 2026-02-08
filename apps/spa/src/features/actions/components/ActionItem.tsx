@@ -38,7 +38,19 @@ export function ActionItem({ action }: { readonly action: Action }) {
           </svg>
         )}
       </button>
-      <span className={`flex-1 text-sm ${action.state === "closed" ? "line-through text-gray-400" : "text-gray-800"}`}>{action.title}</span>
+      <span className={`min-w-0 flex-1 truncate text-sm ${action.state === "closed" ? "line-through text-gray-400" : "text-gray-800"}`}>
+        {action.title}
+      </span>
+      {action.labels.length > 0 && (
+        <div className="flex max-w-[40%] shrink-0 items-center gap-1">
+          {action.labels.slice(0, 3).map((label) => (
+            <span key={label} className="truncate rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+              {label}
+            </span>
+          ))}
+          {action.labels.length > 3 && <span className="text-xs text-gray-400">+{action.labels.length - 3}</span>}
+        </div>
+      )}
     </div>
   );
 }

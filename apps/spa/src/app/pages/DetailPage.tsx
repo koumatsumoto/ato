@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
-import { useAction, useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
+import { useAction, useCloseAction, useReopenAction, useUpdateAction } from "@/features/actions/hooks/use-actions";
 import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
 import { useRelativeTime } from "@/shared/hooks/use-relative-time";
+import { addRecentLabels } from "@/features/actions/lib/label-store";
 import { DetailSkeleton } from "@/features/actions/components/DetailSkeleton";
+import { LabelEditor } from "@/features/actions/components/LabelEditor";
 import { NotFound } from "@/shared/components/ui/NotFound";
 import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
 
@@ -12,17 +14,26 @@ export function DetailPage() {
   const { data: action, isLoading, error, refetch } = useAction(Number(id));
   const closeAction = useCloseAction();
   const reopenAction = useReopenAction();
+  const updateAction = useUpdateAction();
+  const updateMutateRef = useRef(updateAction.mutate);
+  updateMutateRef.current = updateAction.mutate;
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [labels, setLabels] = useState<readonly string[]>([]);
   const [isTitleEditing, setIsTitleEditing] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef(title);
+  titleRef.current = title;
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
   const initializedRef = useRef(false);
 
   useEffect(() => {
     if (action && !initializedRef.current) {
       setTitle(action.title);
       setBody(action.body);
+      setLabels(action.labels);
       initializedRef.current = true;
     }
   }, [action]);
@@ -57,6 +68,15 @@ export function DetailPage() {
   const handleBodyBlur = () => {
     saveNow();
   };
+
+  const handleLabelsChange = useCallback(
+    (newLabels: readonly string[]) => {
+      setLabels(newLabels);
+      addRecentLabels(newLabels);
+      updateMutateRef.current({ id: Number(id), title: titleRef.current, body: bodyRef.current, labels: [...newLabels] });
+    },
+    [id],
+  );
 
   const handleToggle = useCallback(() => {
     if (!action) return;
@@ -110,13 +130,14 @@ export function DetailPage() {
           </button>
         )}
       </div>
+      <LabelEditor labels={labels} onChange={handleLabelsChange} />
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onBlur={handleBodyBlur}
         placeholder="メモを追加..."
         className="w-full resize-y border-transparent bg-transparent px-0 py-2 text-sm leading-relaxed text-gray-700 focus:border-transparent focus:outline-none"
-        style={{ minHeight: "calc(100vh - 200px)" }}
+        style={{ minHeight: "calc(100vh - 250px)" }}
         maxLength={65536}
       />
       <div className="mt-1 text-right">

@@ -7,11 +7,13 @@ export interface Action {
   readonly updatedAt: string;
   readonly closedAt: string | null;
   readonly url: string;
+  readonly labels: readonly string[];
 }
 
 export interface CreateActionInput {
   readonly title: string;
   readonly body?: string;
+  readonly labels?: readonly string[];
 }
 
 export interface UpdateActionInput {
@@ -19,4 +21,5 @@ export interface UpdateActionInput {
   readonly body?: string;
   readonly state?: "open" | "closed";
   readonly state_reason?: "completed" | "reopened" | "not_planned";
+  readonly labels?: readonly string[];
 }
