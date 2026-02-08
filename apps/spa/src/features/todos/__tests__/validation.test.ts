@@ -29,23 +29,23 @@ describe("createTodoSchema", () => {
 });
 
 describe("updateTodoSchema", () => {
-  it("accepts partial update with title only", () => {
-    const result = updateTodoSchema.safeParse({ title: "Updated" });
+  it("accepts valid title and body", () => {
+    const result = updateTodoSchema.safeParse({ title: "Updated", body: "New body" });
     expect(result.success).toBe(true);
   });
 
-  it("accepts partial update with body only", () => {
+  it("accepts empty body", () => {
+    const result = updateTodoSchema.safeParse({ title: "Updated", body: "" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing title", () => {
     const result = updateTodoSchema.safeParse({ body: "New body" });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts empty object", () => {
-    const result = updateTodoSchema.safeParse({});
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("rejects empty string title", () => {
-    const result = updateTodoSchema.safeParse({ title: "" });
+    const result = updateTodoSchema.safeParse({ title: "", body: "" });
     expect(result.success).toBe(false);
   });
 });

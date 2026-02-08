@@ -32,7 +32,7 @@ export function DetailPage() {
       return;
     }
     setValidationError(null);
-    updateTodo.mutate({ id: todo.id, title, body }, { onSuccess: () => setIsDirty(false) });
+    updateTodo.mutate({ id: todo.id, title: result.data.title, body: result.data.body }, { onSuccess: () => setIsDirty(false) });
   };
 
   if (isLoading) return <DetailSkeleton />;

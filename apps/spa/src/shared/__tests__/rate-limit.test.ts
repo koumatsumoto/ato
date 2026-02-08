@@ -35,6 +35,12 @@ describe("isRateLimited", () => {
     expect(isRateLimited(response)).toBe(true);
   });
 
+  it("returns true when status is 429 (secondary rate limit)", () => {
+    const response = new Response("Too Many Requests", { status: 429 });
+
+    expect(isRateLimited(response)).toBe(true);
+  });
+
   it("returns false when status is 403 but remaining > 0", () => {
     const response = new Response("Forbidden", {
       status: 403,

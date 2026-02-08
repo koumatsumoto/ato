@@ -11,5 +11,6 @@ export function extractRateLimit(headers: Headers): RateLimitInfo {
 }
 
 export function isRateLimited(response: Response): boolean {
+  if (response.status === 429) return true;
   return response.status === 403 && response.headers.get("X-RateLimit-Remaining") === "0";
 }
