@@ -12,10 +12,15 @@ try {
   commitHash = "unknown";
 }
 
+const now = new Date();
+const pad = (n: number) => String(n).padStart(2, "0");
+const timestamp = `${pad(now.getMonth() + 1)}${pad(now.getDate())}T${pad(now.getHours())}${pad(now.getMinutes())}`;
+const appVersion = `${commitHash}@${timestamp}`;
+
 export default defineConfig({
   base: "/ato/",
   define: {
-    __APP_VERSION__: JSON.stringify(commitHash),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   plugins: [
     react(),

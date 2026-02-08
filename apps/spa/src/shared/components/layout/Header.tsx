@@ -41,7 +41,7 @@ export function Header() {
                   ログアウト
                 </button>
                 <div className="border-t px-4 py-1.5">
-                  <p className="text-[10px] text-gray-400">v:{__APP_VERSION__}</p>
+                  <p className="text-[10px] text-gray-400">version: {__APP_VERSION__}</p>
                 </div>
               </div>
             )}

@@ -3,7 +3,7 @@ import path from "path";
 
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify("test000"),
+    __APP_VERSION__: JSON.stringify("test000@0101T0000"),
   },
   test: {
     environment: "jsdom",

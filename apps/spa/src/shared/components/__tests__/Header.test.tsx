@@ -78,7 +78,7 @@ describe("Header", () => {
 
     await user.click(screen.getByLabelText("メニュー"));
 
-    expect(screen.getByText("v:test000")).toBeInTheDocument();
+    expect(screen.getByText("version: test000@0101T0000")).toBeInTheDocument();
   });
 
   it("calls logout on menu logout button click", async () => {
