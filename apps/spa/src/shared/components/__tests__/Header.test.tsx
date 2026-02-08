@@ -14,6 +14,10 @@ vi.mock("@/features/auth/hooks/use-auth", () => ({
   }),
 }));
 
+vi.mock("@/shared/hooks/use-click-outside", () => ({
+  useClickOutside: vi.fn(),
+}));
+
 describe("Header", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +30,7 @@ describe("Header", () => {
     expect(screen.getByText("ATO")).toBeInTheDocument();
   });
 
-  it("shows user avatar and logout when user is present", () => {
+  it("shows user avatar button when user is present", () => {
     mockAuthState = {
       token: "t",
       user: { login: "testuser", id: 1, avatarUrl: "https://example.com/avatar.jpg" },
@@ -37,17 +41,16 @@ describe("Header", () => {
 
     const avatar = document.querySelector("img.rounded-full");
     expect(avatar).toHaveAttribute("src", "https://example.com/avatar.jpg");
-    expect(screen.getByText("Logout")).toBeInTheDocument();
   });
 
-  it("does not show avatar or logout when user is null", () => {
+  it("does not show avatar when user is null", () => {
     render(<Header />);
 
     expect(document.querySelector("img.rounded-full")).toBeNull();
-    expect(screen.queryByText("Logout")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("メニュー")).not.toBeInTheDocument();
   });
 
-  it("calls logout on button click", async () => {
+  it("shows logout option in dropdown menu after clicking avatar", async () => {
     mockAuthState = {
       token: "t",
       user: { login: "testuser", id: 1, avatarUrl: "https://example.com/avatar.jpg" },
@@ -57,7 +60,24 @@ describe("Header", () => {
 
     render(<Header />);
 
-    await user.click(screen.getByText("Logout"));
+    await user.click(screen.getByLabelText("メニュー"));
+
+    expect(screen.getByText("ログアウト")).toBeInTheDocument();
+    expect(screen.getByText("testuser")).toBeInTheDocument();
+  });
+
+  it("calls logout on menu logout button click", async () => {
+    mockAuthState = {
+      token: "t",
+      user: { login: "testuser", id: 1, avatarUrl: "https://example.com/avatar.jpg" },
+      isLoading: false,
+    };
+    const user = userEvent.setup();
+
+    render(<Header />);
+
+    await user.click(screen.getByLabelText("メニュー"));
+    await user.click(screen.getByText("ログアウト"));
 
     expect(mockLogout).toHaveBeenCalledOnce();
   });

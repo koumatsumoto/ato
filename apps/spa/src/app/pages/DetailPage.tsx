@@ -1,81 +1,127 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { useTodo, useUpdateTodo } from "@/features/todos/hooks/use-todos";
-import { updateTodoSchema } from "@/features/todos/lib/validation";
-import { CompletionToggle } from "@/features/todos/components/CompletionToggle";
-import { DetailSkeleton } from "@/features/todos/components/DetailSkeleton";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "react-router";
+import { useAction, useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
+import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
+import { useRelativeTime } from "@/shared/hooks/use-relative-time";
+import { DetailSkeleton } from "@/features/actions/components/DetailSkeleton";
 import { NotFound } from "@/shared/components/ui/NotFound";
 import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
 
 export function DetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { data: todo, isLoading, error, refetch } = useTodo(Number(id));
-  const updateTodo = useUpdateTodo();
+  const { data: action, isLoading, error, refetch } = useAction(Number(id));
+  const closeAction = useCloseAction();
+  const reopenAction = useReopenAction();
+
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [isDirty, setIsDirty] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (todo) {
-      setTitle(todo.title);
-      setBody(todo.body);
+    if (action && !initializedRef.current) {
+      setTitle(action.title);
+      setBody(action.body);
+      initializedRef.current = true;
     }
-  }, [todo]);
+  }, [action]);
 
-  const handleSave = () => {
-    if (!todo) return;
-    const result = updateTodoSchema.safeParse({ title, body });
-    if (!result.success) {
-      setValidationError(result.error.errors[0]?.message ?? "Invalid input");
-      return;
-    }
-    setValidationError(null);
-    updateTodo.mutate({ id: todo.id, title: result.data.title, body: result.data.body }, { onSuccess: () => setIsDirty(false) });
+  const { lastSavedAt, isSaving, saveNow } = useAutoSave({
+    id: Number(id),
+    title,
+    body,
+    originalTitle: action?.title ?? "",
+    originalBody: action?.body ?? "",
+  });
+
+  const savedTimeText = useRelativeTime(lastSavedAt);
+
+  const handleTitleClick = () => {
+    setIsTitleEditing(true);
+    setTimeout(() => titleInputRef.current?.focus(), 0);
   };
+
+  const handleTitleBlur = () => {
+    setIsTitleEditing(false);
+    saveNow();
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      setIsTitleEditing(false);
+      saveNow();
+    }
+  };
+
+  const handleBodyBlur = () => {
+    saveNow();
+  };
+
+  const handleToggle = useCallback(() => {
+    if (!action) return;
+    if (action.state === "open") {
+      closeAction.mutate(action.id);
+    } else {
+      reopenAction.mutate(action.id);
+    }
+  }, [action, closeAction, reopenAction]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveNow();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [saveNow]);
 
   if (isLoading) return <DetailSkeleton />;
   if (error) return <ErrorBanner error={error} onRetry={() => void refetch()} />;
-  if (!todo) return <NotFound />;
+  if (!action) return <NotFound />;
 
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700">
-        Back
-      </button>
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => {
-          setTitle(e.target.value);
-          setIsDirty(true);
-          if (validationError) setValidationError(null);
-        }}
-        className="w-full rounded-lg border px-4 py-2 text-lg font-semibold focus:border-blue-500 focus:outline-none"
-        maxLength={256}
-      />
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleToggle}
+          aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 hover:border-blue-500"
+        >
+          {action.state === "closed" && (
+            <svg className="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+        {isTitleEditing ? (
+          <input
+            ref={titleInputRef}
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={handleTitleBlur}
+            onKeyDown={handleTitleKeyDown}
+            className="flex-1 bg-transparent text-lg font-semibold focus:outline-none"
+            maxLength={256}
+          />
+        ) : (
+          <button onClick={handleTitleClick} className="flex-1 text-left text-lg font-semibold text-gray-800 hover:text-gray-600">
+            {title || "タイトルなし"}
+          </button>
+        )}
+      </div>
       <textarea
         value={body}
-        onChange={(e) => {
-          setBody(e.target.value);
-          setIsDirty(true);
-          if (validationError) setValidationError(null);
-        }}
-        placeholder="Add a note..."
-        className="w-full rounded-lg border px-4 py-3 min-h-[200px] resize-y focus:border-blue-500 focus:outline-none"
+        onChange={(e) => setBody(e.target.value)}
+        onBlur={handleBodyBlur}
+        placeholder="メモを追加..."
+        className="w-full resize-y border-transparent bg-transparent px-0 py-2 text-sm leading-relaxed text-gray-700 focus:border-transparent focus:outline-none"
+        style={{ minHeight: "calc(100vh - 200px)" }}
         maxLength={65536}
       />
-      {validationError && <p className="text-sm text-red-600">{validationError}</p>}
-      <div className="flex items-center justify-between">
-        <CompletionToggle todo={todo} />
-        <button
-          onClick={handleSave}
-          disabled={!isDirty || updateTodo.isPending}
-          className="rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
-        >
-          {updateTodo.isPending ? "Saving..." : "Save"}
-        </button>
+      <div className="fixed bottom-0 right-0 p-3">
+        {isSaving && <span className="text-xs text-gray-400">保存中...</span>}
+        {!isSaving && savedTimeText && <span className="text-xs text-gray-400">保存済み {savedTimeText}</span>}
       </div>
     </div>
   );

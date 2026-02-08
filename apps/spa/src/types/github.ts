@@ -23,3 +23,9 @@ export interface GitHubRepository {
   readonly private: boolean;
   readonly has_issues: boolean;
 }
+
+export interface GitHubSearchResult {
+  readonly total_count: number;
+  readonly incomplete_results: boolean;
+  readonly items: readonly GitHubIssue[];
+}

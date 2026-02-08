@@ -29,7 +29,7 @@ describe("LoginPage", () => {
     );
 
     expect(screen.getByText("ATO")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Login with GitHub" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "GitHub でログイン" })).toBeInTheDocument();
   });
 
   it("calls login on button click", async () => {
@@ -41,7 +41,7 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Login with GitHub" }));
+    await user.click(screen.getByRole("button", { name: "GitHub でログイン" }));
 
     expect(mockLogin).toHaveBeenCalledOnce();
   });
@@ -55,7 +55,7 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Login with GitHub" }));
+    await user.click(screen.getByRole("button", { name: "GitHub でログイン" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Popup blocked");
@@ -77,13 +77,13 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Login with GitHub" }));
+    await user.click(screen.getByRole("button", { name: "GitHub でログイン" }));
 
-    expect(screen.getByRole("button", { name: "Logging in..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "ログイン中..." })).toBeDisabled();
 
     resolveLogin!();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Login with GitHub" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "GitHub でログイン" })).toBeEnabled();
     });
   });
 
@@ -95,6 +95,6 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByRole("button", { name: "Login with GitHub" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "GitHub でログイン" })).not.toBeInTheDocument();
   });
 });

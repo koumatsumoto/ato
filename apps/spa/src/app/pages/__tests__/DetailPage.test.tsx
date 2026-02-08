@@ -1,42 +1,57 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { DetailPage } from "../DetailPage";
-import type { Todo } from "@/types";
-import { makeTodo } from "@/shared/__tests__/factories";
+import type { Action } from "@/types";
+import { makeAction } from "@/shared/__tests__/factories";
 
-const mockNavigate = vi.fn();
-const mockUpdateMutate = vi.fn();
-let mockTodoReturn: { data: Todo | undefined; isLoading: boolean };
+let mockActionReturn: { data: Action | undefined; isLoading: boolean; error: Error | null; refetch: ReturnType<typeof vi.fn> };
+const mockCloseMutate = vi.fn();
+const mockReopenMutate = vi.fn();
 
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
   return {
     ...actual,
     useParams: () => ({ id: "5" }),
-    useNavigate: () => mockNavigate,
   };
 });
 
-vi.mock("@/features/todos/hooks/use-todos", () => ({
-  useTodo: () => mockTodoReturn,
-  useUpdateTodo: () => ({
-    mutate: mockUpdateMutate,
+vi.mock("@/features/actions/hooks/use-actions", () => ({
+  useAction: () => mockActionReturn,
+  useUpdateAction: () => ({
+    mutate: vi.fn(),
     isPending: false,
   }),
-  useCloseTodo: () => ({ mutate: vi.fn(), isPending: false }),
-  useReopenTodo: () => ({ mutate: vi.fn(), isPending: false }),
+  useCloseAction: () => ({ mutate: mockCloseMutate, isPending: false }),
+  useReopenAction: () => ({ mutate: mockReopenMutate, isPending: false }),
+}));
+
+vi.mock("@/features/actions/hooks/use-auto-save", () => ({
+  useAutoSave: () => ({
+    lastSavedAt: null,
+    isSaving: false,
+    isDirty: false,
+    saveNow: vi.fn(),
+  }),
+}));
+
+vi.mock("@/shared/hooks/use-relative-time", () => ({
+  useRelativeTime: () => null,
+}));
+
+vi.mock("@uiball/loaders", () => ({
+  Waveform: () => <div data-testid="waveform" />,
 }));
 
 describe("DetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTodoReturn = { data: undefined, isLoading: false };
+    mockActionReturn = { data: undefined, isLoading: false, error: null, refetch: vi.fn() };
   });
 
   it("shows loading skeleton while loading", () => {
-    mockTodoReturn = { data: undefined, isLoading: true };
+    mockActionReturn = { data: undefined, isLoading: true, error: null, refetch: vi.fn() };
 
     render(
       <MemoryRouter>
@@ -44,11 +59,11 @@ describe("DetailPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("status", { name: "Loading todo" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "行動を読み込み中" })).toBeInTheDocument();
   });
 
-  it("shows not found when todo does not exist", () => {
-    mockTodoReturn = { data: undefined, isLoading: false };
+  it("shows not found when action does not exist", () => {
+    mockActionReturn = { data: undefined, isLoading: false, error: null, refetch: vi.fn() };
 
     render(
       <MemoryRouter>
@@ -56,11 +71,11 @@ describe("DetailPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Not Found")).toBeInTheDocument();
+    expect(screen.getByText("見つかりません")).toBeInTheDocument();
   });
 
-  it("renders todo title and body when loaded", () => {
-    mockTodoReturn = { data: makeTodo({ title: "My task", body: "Some notes" }), isLoading: false };
+  it("renders action title and body when loaded", () => {
+    mockActionReturn = { data: makeAction({ title: "My task", body: "Some notes" }), isLoading: false, error: null, refetch: vi.fn() };
 
     render(
       <MemoryRouter>
@@ -68,13 +83,12 @@ describe("DetailPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByDisplayValue("My task")).toBeInTheDocument();
+    expect(screen.getByText("My task")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Some notes")).toBeInTheDocument();
   });
 
-  it("navigates back on back button click", async () => {
-    mockTodoReturn = { data: makeTodo(), isLoading: false };
-    const user = userEvent.setup();
+  it("renders completion toggle checkbox for open action", () => {
+    mockActionReturn = { data: makeAction({ state: "open" }), isLoading: false, error: null, refetch: vi.fn() };
 
     render(
       <MemoryRouter>
@@ -82,14 +96,11 @@ describe("DetailPage", () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByText("Back"));
-
-    expect(mockNavigate).toHaveBeenCalledWith(-1);
+    expect(screen.getByLabelText("完了にする")).toBeInTheDocument();
   });
 
-  it("enables save button when content is edited", async () => {
-    mockTodoReturn = { data: makeTodo(), isLoading: false };
-    const user = userEvent.setup();
+  it("renders completion toggle checkbox for closed action", () => {
+    mockActionReturn = { data: makeAction({ state: "closed" }), isLoading: false, error: null, refetch: vi.fn() };
 
     render(
       <MemoryRouter>
@@ -97,29 +108,6 @@ describe("DetailPage", () => {
       </MemoryRouter>,
     );
 
-    const saveButton = screen.getByRole("button", { name: "Save" });
-    expect(saveButton).toBeDisabled();
-
-    await user.type(screen.getByDisplayValue("Test todo"), " updated");
-
-    expect(saveButton).toBeEnabled();
-  });
-
-  it("calls updateTodo on save", async () => {
-    mockTodoReturn = { data: makeTodo({ id: 5, title: "Original", body: "Test body" }), isLoading: false };
-    const user = userEvent.setup();
-
-    render(
-      <MemoryRouter>
-        <DetailPage />
-      </MemoryRouter>,
-    );
-
-    const titleInput = screen.getByDisplayValue("Original");
-    await user.clear(titleInput);
-    await user.type(titleInput, "Updated title");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(mockUpdateMutate).toHaveBeenCalledWith(expect.objectContaining({ id: 5 }), expect.any(Object));
+    expect(screen.getByLabelText("未完了に戻す")).toBeInTheDocument();
   });
 });
