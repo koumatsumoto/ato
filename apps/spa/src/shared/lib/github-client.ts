@@ -1,4 +1,4 @@
-import { AuthError, NetworkError, RateLimitError } from "@/types";
+import { AuthError, NetworkError, RateLimitError } from "@/shared/lib/errors";
 import { extractRateLimit, isRateLimited } from "@/shared/lib/rate-limit";
 
 const GITHUB_API = "https://api.github.com";

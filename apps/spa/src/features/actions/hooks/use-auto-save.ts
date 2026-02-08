@@ -6,9 +6,9 @@ import { updateActionSchema } from "@/features/actions/lib/validation";
 interface UseAutoSaveParams {
   readonly id: number;
   readonly title: string;
-  readonly body: string;
+  readonly memo: string;
   readonly originalTitle: string;
-  readonly originalBody: string;
+  readonly originalMemo: string;
 }
 
 interface UseAutoSaveResult {
@@ -20,40 +20,40 @@ interface UseAutoSaveResult {
 
 const DEBOUNCE_MS = 10_000;
 
-export function useAutoSave({ id, title, body, originalTitle, originalBody }: UseAutoSaveParams): UseAutoSaveResult {
+export function useAutoSave({ id, title, memo, originalTitle, originalMemo }: UseAutoSaveParams): UseAutoSaveResult {
   const updateAction = useUpdateAction();
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const saveVersionRef = useRef(0);
   const lastSavedTitleRef = useRef(originalTitle);
-  const lastSavedBodyRef = useRef(originalBody);
+  const lastSavedMemoRef = useRef(originalMemo);
   const mutateRef = useRef(updateAction.mutate);
   mutateRef.current = updateAction.mutate;
 
   useEffect(() => {
     lastSavedTitleRef.current = originalTitle;
-    lastSavedBodyRef.current = originalBody;
-  }, [originalTitle, originalBody]);
+    lastSavedMemoRef.current = originalMemo;
+  }, [originalTitle, originalMemo]);
 
-  const isDirty = title !== lastSavedTitleRef.current || body !== lastSavedBodyRef.current;
+  const isDirty = title !== lastSavedTitleRef.current || memo !== lastSavedMemoRef.current;
 
   const debouncedTitle = useDebounce(title, DEBOUNCE_MS);
-  const debouncedBody = useDebounce(body, DEBOUNCE_MS);
+  const debouncedMemo = useDebounce(memo, DEBOUNCE_MS);
 
   const performSave = useCallback(
-    (saveTitle: string, saveBody: string) => {
-      if (saveTitle === lastSavedTitleRef.current && saveBody === lastSavedBodyRef.current) return;
+    (saveTitle: string, saveMemo: string) => {
+      if (saveTitle === lastSavedTitleRef.current && saveMemo === lastSavedMemoRef.current) return;
 
-      const result = updateActionSchema.safeParse({ title: saveTitle, body: saveBody });
+      const result = updateActionSchema.safeParse({ title: saveTitle, memo: saveMemo });
       if (!result.success) return;
 
       const version = ++saveVersionRef.current;
       mutateRef.current(
-        { id, title: result.data.title, body: result.data.body },
+        { id, title: result.data.title, memo: result.data.memo },
         {
           onSuccess: () => {
             if (saveVersionRef.current === version) {
               lastSavedTitleRef.current = saveTitle;
-              lastSavedBodyRef.current = saveBody;
+              lastSavedMemoRef.current = saveMemo;
               setLastSavedAt(new Date());
             }
           },
@@ -64,12 +64,12 @@ export function useAutoSave({ id, title, body, originalTitle, originalBody }: Us
   );
 
   useEffect(() => {
-    performSave(debouncedTitle, debouncedBody);
-  }, [debouncedTitle, debouncedBody, performSave]);
+    performSave(debouncedTitle, debouncedMemo);
+  }, [debouncedTitle, debouncedMemo, performSave]);
 
   const saveNow = useCallback(() => {
-    performSave(title, body);
-  }, [title, body, performSave]);
+    performSave(title, memo);
+  }, [title, memo, performSave]);
 
   return { lastSavedAt, isSaving: updateAction.isPending, isDirty, saveNow };
 }

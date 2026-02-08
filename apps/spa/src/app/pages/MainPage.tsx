@@ -8,7 +8,7 @@ import { SearchPanel } from "@/features/actions/components/SearchPanel";
 import { ListSkeleton } from "@/features/actions/components/ListSkeleton";
 import { SetupGuide } from "@/features/actions/components/SetupGuide";
 import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
-import { RepoNotConfiguredError } from "@/types";
+import { RepoNotConfiguredError } from "@/shared/lib/errors";
 
 export function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");

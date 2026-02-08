@@ -13,12 +13,12 @@ export const labelsSchema = z
 
 export const createActionSchema = z.object({
   title: z.string().min(1, "タイトルは必須です").max(256, "タイトルは256文字以内にしてください"),
-  body: z.string().max(65536, "本文は65536文字以内にしてください").optional(),
+  memo: z.string().max(65536, "メモは65536文字以内にしてください").optional(),
   labels: labelsSchema.optional(),
 });
 
 export const updateActionSchema = z.object({
   title: z.string().min(1, "タイトルは必須です").max(256, "タイトルは256文字以内にしてください"),
-  body: z.string().max(65536, "本文は65536文字以内にしてください"),
+  memo: z.string().max(65536, "メモは65536文字以内にしてください"),
   labels: labelsSchema.optional(),
 });

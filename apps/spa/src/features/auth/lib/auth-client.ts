@@ -1,4 +1,4 @@
-import type { OAuthMessage } from "@/types";
+import type { OAuthMessage } from "@/features/auth/types";
 
 export const LOGIN_TIMEOUT_MS = 120_000;
 const POPUP_POLL_INTERVAL_MS = 500;

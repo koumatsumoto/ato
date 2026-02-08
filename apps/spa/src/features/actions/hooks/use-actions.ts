@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Action, CreateActionInput, UpdateActionInput } from "@/types";
+import type { Action, CreateActionInput, UpdateActionInput } from "@/features/actions/types";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ensureRepository } from "@/features/actions/lib/repo-init";
 import { fetchActions, createAction, fetchAction, updateAction, closeAction, reopenAction } from "@/features/actions/lib/github-api";
@@ -68,7 +68,7 @@ export function useCreateAction() {
           {
             id: tempId,
             title: input.title,
-            body: input.body ?? "",
+            memo: input.memo ?? "",
             state: "open" as const,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

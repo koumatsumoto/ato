@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AuthContextValue, AuthState, AuthUser } from "@/types";
-import { AuthError } from "@/types";
+import type { AuthContextValue, AuthState, AuthUser } from "@/features/auth/types";
+import { AuthError } from "@/shared/lib/errors";
 import { getToken, setToken, clearToken } from "@/features/auth/lib/token-store";
 import { openLoginPopup } from "@/features/auth/lib/auth-client";
 import { githubFetch } from "@/shared/lib/github-client";

@@ -19,20 +19,20 @@ export function DetailPage() {
   updateMutateRef.current = updateAction.mutate;
 
   const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [memo, setMemo] = useState("");
   const [labels, setLabels] = useState<readonly string[]>([]);
   const [isTitleEditing, setIsTitleEditing] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef(title);
   titleRef.current = title;
-  const bodyRef = useRef(body);
-  bodyRef.current = body;
+  const memoRef = useRef(memo);
+  memoRef.current = memo;
   const initializedRef = useRef(false);
 
   useEffect(() => {
     if (action && !initializedRef.current) {
       setTitle(action.title);
-      setBody(action.body);
+      setMemo(action.memo);
       setLabels(action.labels);
       initializedRef.current = true;
     }
@@ -41,9 +41,9 @@ export function DetailPage() {
   const { lastSavedAt, isSaving, saveNow } = useAutoSave({
     id: Number(id),
     title,
-    body,
+    memo,
     originalTitle: action?.title ?? "",
-    originalBody: action?.body ?? "",
+    originalMemo: action?.memo ?? "",
   });
 
   const savedTimeText = useRelativeTime(lastSavedAt);
@@ -65,7 +65,7 @@ export function DetailPage() {
     }
   };
 
-  const handleBodyBlur = () => {
+  const handleMemoBlur = () => {
     saveNow();
   };
 
@@ -73,7 +73,7 @@ export function DetailPage() {
     (newLabels: readonly string[]) => {
       setLabels(newLabels);
       addRecentLabels(newLabels);
-      updateMutateRef.current({ id: Number(id), title: titleRef.current, body: bodyRef.current, labels: [...newLabels] });
+      updateMutateRef.current({ id: Number(id), title: titleRef.current, memo: memoRef.current, labels: [...newLabels] });
     },
     [id],
   );
@@ -132,9 +132,9 @@ export function DetailPage() {
       </div>
       <LabelEditor labels={labels} onChange={handleLabelsChange} />
       <textarea
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onBlur={handleBodyBlur}
+        value={memo}
+        onChange={(e) => setMemo(e.target.value)}
+        onBlur={handleMemoBlur}
         placeholder="メモを追加..."
         className="w-full resize-y border-transparent bg-transparent px-0 py-2 text-sm leading-relaxed text-gray-700 focus:border-transparent focus:outline-none"
         style={{ minHeight: "calc(100vh - 250px)" }}

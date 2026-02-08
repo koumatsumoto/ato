@@ -20,13 +20,13 @@ GitHub Issues をバックエンドに使うメモアプリ。1 Issue = 1 行動
 ato/                          # pnpm workspace モノリポ
 ├── apps/
 │   ├── spa/                  # React SPA (GitHub Pages)
-│   │   └── src/
-│   │       ├── app/          # App.tsx, router, providers, pages/
-│   │       ├── features/
-│   │       │   ├── auth/     # hooks/, lib/, components/
-│   │       │   └── actions/   # hooks/, lib/, components/
-│   │       ├── shared/       # lib/ (github-client, env, rate-limit), hooks/, components/
-│   │       └── types/        # auth.ts, action.ts, github.ts, errors.ts
+│   │   ├── src/
+│   │   │   ├── app/          # App.tsx, router, providers, pages/
+│   │   │   ├── features/
+│   │   │   │   ├── auth/     # hooks/, lib/, components/, types.ts
+│   │   │   │   └── actions/  # hooks/, lib/, components/, types.ts
+│   │   │   └── shared/       # lib/ (github-client, env, errors), hooks/, components/
+│   │   └── tests/            # 全テスト (app/, features/, shared/, factories.ts)
 │   └── oauth-proxy/          # Cloudflare Workers (~150行)
 │       └── src/index.ts
 ├── docs/
@@ -104,7 +104,9 @@ GET    /user                                        # ユーザー情報
 | レート制限         | `apps/spa/src/shared/lib/rate-limit.ts`                |
 | エラーバナー       | `apps/spa/src/shared/components/ui/ErrorBanner.tsx`    |
 | 環境変数           | `apps/spa/src/shared/lib/env.ts`                       |
-| エラー型           | `apps/spa/src/types/errors.ts`                         |
+| エラー型           | `apps/spa/src/shared/lib/errors.ts`                    |
+| Action ドメイン型  | `apps/spa/src/features/actions/types.ts`               |
+| Auth ドメイン型    | `apps/spa/src/features/auth/types.ts`                  |
 | ルーター           | `apps/spa/src/app/router.tsx`                          |
 | プロバイダー       | `apps/spa/src/app/providers.tsx`                       |
 | OAuth Proxy        | `apps/oauth-proxy/src/index.ts`                        |
@@ -132,9 +134,9 @@ SPA_ORIGIN=http://localhost:5173
 
 - フレームワーク: Vitest 4 + jsdom + MSW 2
 - カバレッジ: v8 プロバイダー、80%+ 必須（OAuth Proxy は閾値強制）
-- テスト配置: `src/**/__tests__/**/*.test.{ts,tsx}`
-- セットアップ: `apps/spa/src/shared/__tests__/setup.ts`
-- テストデータ: `apps/spa/src/shared/__tests__/factories.ts`
+- テスト配置: `apps/spa/tests/**/*.test.{ts,tsx}`
+- セットアップ: `apps/spa/tests/setup.ts`
+- テストデータ: `apps/spa/tests/factories.ts`
 
 ## CI/CD
 

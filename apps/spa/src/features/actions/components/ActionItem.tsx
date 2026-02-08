@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import type { Action } from "@/types";
+import type { Action } from "@/features/actions/types";
 import { useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
 
 export function ActionItem({ action }: { readonly action: Action }) {

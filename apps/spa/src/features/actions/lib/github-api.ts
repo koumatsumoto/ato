@@ -1,5 +1,5 @@
-import type { Action, CreateActionInput, UpdateActionInput, GitHubIssue } from "@/types";
-import { GitHubApiError, NotFoundError } from "@/types";
+import type { Action, CreateActionInput, UpdateActionInput, GitHubIssue } from "@/features/actions/types";
+import { GitHubApiError, NotFoundError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
 import { mapIssueToAction } from "./issue-mapper";
 import { parseLinkHeader } from "./pagination";
@@ -55,7 +55,7 @@ export async function createAction(login: string, input: CreateActionInput): Pro
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       title: input.title,
-      body: input.body,
+      body: input.memo,
       labels: input.labels,
     }),
   });
@@ -86,7 +86,13 @@ export async function updateAction(login: string, id: number, input: UpdateActio
   const response = await githubFetch(`${repoPath(login)}/issues/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...(input.title !== undefined && { title: input.title }),
+      ...(input.memo !== undefined && { body: input.memo }),
+      ...(input.state !== undefined && { state: input.state }),
+      ...(input.state_reason !== undefined && { state_reason: input.state_reason }),
+      ...(input.labels !== undefined && { labels: input.labels }),
+    }),
   });
 
   if (!response.ok) {

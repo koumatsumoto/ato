@@ -1,4 +1,4 @@
-import type { Action } from "@/types";
+import type { Action } from "@/features/actions/types";
 import { useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
 
 export function CompletionToggle({ action }: { action: Action }) {

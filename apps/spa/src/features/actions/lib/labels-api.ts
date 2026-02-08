@@ -1,5 +1,5 @@
-import type { GitHubLabel } from "@/types";
-import { GitHubApiError } from "@/types";
+import type { GitHubLabel } from "@/features/actions/types";
+import { GitHubApiError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
 
 const REPO_NAME = "ato-datastore";

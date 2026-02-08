@@ -1,4 +1,4 @@
-import { GitHubApiError, RepoNotConfiguredError } from "@/types";
+import { GitHubApiError, RepoNotConfiguredError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
 
 const REPO_INITIALIZED_KEY = "ato:repo-initialized";

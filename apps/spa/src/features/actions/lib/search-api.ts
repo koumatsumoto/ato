@@ -1,5 +1,5 @@
-import type { Action, GitHubSearchResult } from "@/types";
-import { GitHubApiError } from "@/types";
+import type { Action, GitHubSearchResult } from "@/features/actions/types";
+import { GitHubApiError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
 import { mapIssueToAction } from "./issue-mapper";
 

@@ -1,4 +1,4 @@
-import type { GitHubLabel } from "@/types";
+import type { GitHubLabel } from "@/features/actions/types";
 
 const MAX_SUGGESTIONS = 8;
 

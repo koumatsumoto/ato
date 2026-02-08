@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/features/auth/hooks/use-auth";
-import { AuthError, GitHubApiError } from "@/types";
+import { AuthError, GitHubApiError } from "@/shared/lib/errors";
 
 const queryClient = new QueryClient({
   defaultOptions: {
