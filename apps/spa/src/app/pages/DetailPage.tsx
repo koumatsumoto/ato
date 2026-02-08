@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useTodo, useUpdateTodo } from "@/features/todos/hooks/use-todos";
+import { updateTodoSchema } from "@/features/todos/lib/validation";
 import { CompletionToggle } from "@/features/todos/components/CompletionToggle";
 import { DetailSkeleton } from "@/features/todos/components/DetailSkeleton";
 import { NotFound } from "@/shared/components/ui/NotFound";
@@ -14,6 +15,7 @@ export function DetailPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (todo) {
@@ -24,6 +26,12 @@ export function DetailPage() {
 
   const handleSave = () => {
     if (!todo) return;
+    const result = updateTodoSchema.safeParse({ title, body });
+    if (!result.success) {
+      setValidationError(result.error.errors[0]?.message ?? "Invalid input");
+      return;
+    }
+    setValidationError(null);
     updateTodo.mutate({ id: todo.id, title, body }, { onSuccess: () => setIsDirty(false) });
   };
 
@@ -42,6 +50,7 @@ export function DetailPage() {
         onChange={(e) => {
           setTitle(e.target.value);
           setIsDirty(true);
+          if (validationError) setValidationError(null);
         }}
         className="w-full rounded-lg border px-4 py-2 text-lg font-semibold focus:border-blue-500 focus:outline-none"
         maxLength={256}
@@ -51,11 +60,13 @@ export function DetailPage() {
         onChange={(e) => {
           setBody(e.target.value);
           setIsDirty(true);
+          if (validationError) setValidationError(null);
         }}
         placeholder="Add a note..."
         className="w-full rounded-lg border px-4 py-3 min-h-[200px] resize-y focus:border-blue-500 focus:outline-none"
         maxLength={65536}
       />
+      {validationError && <p className="text-sm text-red-600">{validationError}</p>}
       <div className="flex items-center justify-between">
         <CompletionToggle todo={todo} />
         <button
