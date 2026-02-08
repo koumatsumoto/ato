@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { Header } from "../layout/Header";
 
 const mockLogout = vi.fn();
@@ -25,7 +26,11 @@ describe("Header", () => {
   });
 
   it("renders app name", () => {
-    render(<Header />);
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByText("ATO")).toBeInTheDocument();
   });
@@ -37,14 +42,22 @@ describe("Header", () => {
       isLoading: false,
     };
 
-    render(<Header />);
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>,
+    );
 
     const avatar = document.querySelector("img.rounded-full");
     expect(avatar).toHaveAttribute("src", "https://example.com/avatar.jpg");
   });
 
   it("does not show avatar when user is null", () => {
-    render(<Header />);
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>,
+    );
 
     expect(document.querySelector("img.rounded-full")).toBeNull();
     expect(screen.queryByLabelText("メニュー")).not.toBeInTheDocument();
@@ -58,7 +71,11 @@ describe("Header", () => {
     };
     const user = userEvent.setup();
 
-    render(<Header />);
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>,
+    );
 
     await user.click(screen.getByLabelText("メニュー"));
 
@@ -74,7 +91,11 @@ describe("Header", () => {
     };
     const user = userEvent.setup();
 
-    render(<Header />);
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>,
+    );
 
     await user.click(screen.getByLabelText("メニュー"));
 
@@ -89,7 +110,11 @@ describe("Header", () => {
     };
     const user = userEvent.setup();
 
-    render(<Header />);
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>,
+    );
 
     await user.click(screen.getByLabelText("メニュー"));
     await user.click(screen.getByText("ログアウト"));

@@ -30,7 +30,10 @@ export function ActionAddForm() {
   const placeholder = isFocused ? "新しい行動のタイトルを入力してください" : "行動を追加";
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 border-t bg-white" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <div
+      className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.1)]"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
       <form onSubmit={handleSubmit} className="mx-auto max-w-2xl px-4 py-3">
         {validationError && <p className="mb-1 text-sm text-red-600">{validationError}</p>}
         <div className="flex gap-2">

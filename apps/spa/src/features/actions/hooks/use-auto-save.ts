@@ -26,6 +26,8 @@ export function useAutoSave({ id, title, body, originalTitle, originalBody }: Us
   const saveVersionRef = useRef(0);
   const lastSavedTitleRef = useRef(originalTitle);
   const lastSavedBodyRef = useRef(originalBody);
+  const mutateRef = useRef(updateAction.mutate);
+  mutateRef.current = updateAction.mutate;
 
   useEffect(() => {
     lastSavedTitleRef.current = originalTitle;
@@ -45,7 +47,7 @@ export function useAutoSave({ id, title, body, originalTitle, originalBody }: Us
       if (!result.success) return;
 
       const version = ++saveVersionRef.current;
-      updateAction.mutate(
+      mutateRef.current(
         { id, title: result.data.title, body: result.data.body },
         {
           onSuccess: () => {
@@ -58,7 +60,7 @@ export function useAutoSave({ id, title, body, originalTitle, originalBody }: Us
         },
       );
     },
-    [id, updateAction],
+    [id],
   );
 
   useEffect(() => {

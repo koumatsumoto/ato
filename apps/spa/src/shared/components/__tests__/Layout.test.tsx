@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { Layout } from "../layout/Layout";
 
 vi.mock("@/features/auth/hooks/use-auth", () => ({
@@ -12,14 +13,22 @@ vi.mock("@/features/auth/hooks/use-auth", () => ({
 
 describe("Layout", () => {
   it("renders Header and children", () => {
-    render(<Layout>Test content</Layout>);
+    render(
+      <MemoryRouter>
+        <Layout>Test content</Layout>
+      </MemoryRouter>,
+    );
 
     expect(screen.getByText("ATO")).toBeInTheDocument();
     expect(screen.getByText("Test content")).toBeInTheDocument();
   });
 
   it("renders children inside main element", () => {
-    render(<Layout>Child element</Layout>);
+    render(
+      <MemoryRouter>
+        <Layout>Child element</Layout>
+      </MemoryRouter>,
+    );
 
     const main = document.querySelector("main");
     expect(main).toBeInTheDocument();

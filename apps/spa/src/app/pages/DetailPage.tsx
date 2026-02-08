@@ -119,7 +119,7 @@ export function DetailPage() {
         style={{ minHeight: "calc(100vh - 200px)" }}
         maxLength={65536}
       />
-      <div className="fixed bottom-0 right-0 p-3">
+      <div className="mt-1 text-right">
         {isSaving && <span className="text-xs text-gray-400">保存中...</span>}
         {!isSaving && savedTimeText && <span className="text-xs text-gray-400">保存済み {savedTimeText}</span>}
       </div>
