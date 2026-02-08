@@ -137,7 +137,7 @@ export function DetailPage() {
         onBlur={handleMemoBlur}
         placeholder="メモを追加..."
         className="w-full resize-y border-transparent bg-transparent px-0 py-2 text-sm leading-relaxed text-gray-700 focus:border-transparent focus:outline-none"
-        style={{ minHeight: "calc(100dvh - 250px - var(--sat))" }}
+        style={{ minHeight: "calc(var(--app-height) - 250px)" }}
         maxLength={65536}
       />
       <div className="mt-1 text-right">

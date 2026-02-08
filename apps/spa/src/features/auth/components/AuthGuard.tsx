@@ -4,7 +4,7 @@ import { Layout } from "@/shared/components/layout/Layout";
 
 function PageSkeleton() {
   return (
-    <div className="min-h-dvh bg-gray-50" style={{ paddingTop: "var(--sat)" }}>
+    <div className="bg-gray-50" style={{ minHeight: "var(--app-height)" }}>
       <div className="border-b bg-white px-4 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
           <div className="h-6 w-12 animate-pulse rounded bg-gray-200" />

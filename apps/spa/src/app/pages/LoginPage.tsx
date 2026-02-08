@@ -24,7 +24,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gray-50" style={{ paddingTop: "var(--sat)" }}>
+    <div className="flex items-center justify-center bg-gray-50" style={{ minHeight: "var(--app-height)" }}>
       <div className="w-full max-w-sm space-y-6 text-center">
         <img src={`${import.meta.env.BASE_URL}logo.png`} alt="ATO" className="mx-auto h-24 w-24" />
         <h1 className="text-3xl font-bold">ATO</h1>
