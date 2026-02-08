@@ -9,7 +9,7 @@ SPA (GitHub Pages) がビジネスロジックの全てを担い、OAuth Proxy (
 
 ## システム構成図
 
-```
+```text
 +------------------+        +------------------+
 |                  |  REST  |                  |
 |  SPA             |------->|  GitHub API      |
@@ -52,7 +52,7 @@ OAuth + popup + postMessage パターンを採用。
 SPA と OAuth Proxy が別オリジンのため、postMessage で access_token を受け渡す。
 受け取った access_token は SPA の localStorage に保存し、以降の GitHub API 呼び出しに直接使用する。
 
-```
+```text
 1. SPA: popup で OAuth Proxy /auth/login を開く
 2. OAuth Proxy: state を HttpOnly Cookie に保存、GitHub OAuth 認可画面へリダイレクト
 3. GitHub: ユーザー認可後、OAuth Proxy /auth/callback にリダイレクト
@@ -69,7 +69,7 @@ SPA と OAuth Proxy が別オリジンのため、postMessage で access_token �
 
 ### TODO 作成
 
-```
+```text
 SPA                                              GitHub API
  |                                                |
  |-- POST /repos/{login}/ato-datastore/issues --->|
@@ -83,7 +83,7 @@ SPA                                              GitHub API
 
 ### TODO 一覧取得
 
-```
+```text
 SPA                                              GitHub API
  |                                                |
  |-- GET /repos/{login}/ato-datastore/issues ---->|
@@ -98,7 +98,7 @@ SPA                                              GitHub API
 
 ### TODO 完了
 
-```
+```text
 SPA                                              GitHub API
  |                                                |
  |-- PATCH /repos/{login}/ato-datastore/issues/N ->|
@@ -114,7 +114,7 @@ SPA                                              GitHub API
 
 pnpm workspace によるモノリポ。
 
-```
+```text
 ato/
   apps/
     spa/            # React SPA (GitHub Pages にデプロイ)

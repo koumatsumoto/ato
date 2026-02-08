@@ -56,11 +56,7 @@ GitHub Pages は SPA ルーティングをサポートしないため、`public/
       const path = window.location.pathname;
       const search = window.location.search;
       const hash = window.location.hash;
-      window.location.replace(
-        window.location.origin +
-          "/?redirect=" +
-          encodeURIComponent(path + search + hash),
-      );
+      window.location.replace(window.location.origin + "/?redirect=" + encodeURIComponent(path + search + hash));
     </script>
   </head>
 </html>
@@ -70,7 +66,7 @@ GitHub Pages は SPA ルーティングをサポートしないため、`public/
 
 ## 2. コンポーネントツリー
 
-```
+```text
 App
   RouterProvider
     AuthGuard              -- 認証チェック、未認証なら /login へ
@@ -370,10 +366,7 @@ SPA から GitHub REST API を直接呼び出す。全てのビジネスロジ�
 // shared/lib/github-client.ts
 const GITHUB_API = "https://api.github.com";
 
-async function githubFetch(
-  path: string,
-  options?: RequestInit,
-): Promise<Response> {
+async function githubFetch(path: string, options?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("ato:token");
   if (!token) {
     throw new AuthError("Not authenticated");
@@ -436,9 +429,7 @@ async function fetchTodos(
   const issues: GitHubIssue[] = await response.json();
 
   // Pull Request を除外 (GitHub Issues API は PR も返す)
-  const todos = issues
-    .filter((issue) => !issue.pull_request)
-    .map(mapIssueToTodo);
+  const todos = issues.filter((issue) => !issue.pull_request).map(mapIssueToTodo);
 
   const linkHeader = response.headers.get("Link");
   const { hasNextPage, nextPage } = parseLinkHeader(linkHeader);
@@ -447,10 +438,7 @@ async function fetchTodos(
 }
 
 /** Todo 作成 */
-async function createTodo(
-  login: string,
-  input: CreateTodoInput,
-): Promise<Todo> {
+async function createTodo(login: string, input: CreateTodoInput): Promise<Todo> {
   const response = await githubFetch(`${repoPath(login)}/issues`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -484,11 +472,7 @@ async function fetchTodo(login: string, id: number): Promise<Todo> {
 }
 
 /** Todo 更新 */
-async function updateTodo(
-  login: string,
-  id: number,
-  input: UpdateTodoInput,
-): Promise<Todo> {
+async function updateTodo(login: string, id: number, input: UpdateTodoInput): Promise<Todo> {
   const response = await githubFetch(`${repoPath(login)}/issues/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -707,8 +691,7 @@ function useClosedTodos() {
       }),
     enabled: !!state.user,
     initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasNextPage ? lastPage.nextPage : undefined,
+    getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.nextPage : undefined),
     staleTime: 60_000,
   });
 }
@@ -728,32 +711,28 @@ function useCreateTodo() {
   const queryClient = useQueryClient();
   const { state } = useAuth();
   return useMutation({
-    mutationFn: (input: CreateTodoInput) =>
-      createTodo(state.user!.login, input),
+    mutationFn: (input: CreateTodoInput) => createTodo(state.user!.login, input),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: ["todos", "open"] });
       const previous = queryClient.getQueryData(["todos", "open"]);
 
       // 楽観的にリストに追加
-      queryClient.setQueryData(
-        ["todos", "open"],
-        (old: { todos: Todo[] } | undefined) => ({
-          ...old,
-          todos: [
-            {
-              id: -Date.now(), // 一時 ID
-              title: input.title,
-              body: input.body ?? "",
-              state: "open" as const,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              closedAt: null,
-              url: "",
-            },
-            ...(old?.todos ?? []),
-          ],
-        }),
-      );
+      queryClient.setQueryData(["todos", "open"], (old: { todos: Todo[] } | undefined) => ({
+        ...old,
+        todos: [
+          {
+            id: -Date.now(), // 一時 ID
+            title: input.title,
+            body: input.body ?? "",
+            state: "open" as const,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            closedAt: null,
+            url: "",
+          },
+          ...(old?.todos ?? []),
+        ],
+      }));
 
       return { previous };
     },
@@ -777,13 +756,10 @@ function useCloseTodo() {
       const previous = queryClient.getQueryData(["todos", "open"]);
 
       // 楽観的にリストから除外
-      queryClient.setQueryData(
-        ["todos", "open"],
-        (old: { todos: Todo[] } | undefined) => ({
-          ...old,
-          todos: (old?.todos ?? []).filter((t) => t.id !== id),
-        }),
-      );
+      queryClient.setQueryData(["todos", "open"], (old: { todos: Todo[] } | undefined) => ({
+        ...old,
+        todos: (old?.todos ?? []).filter((t) => t.id !== id),
+      }));
 
       return { previous };
     },
@@ -806,8 +782,7 @@ function useUpdateTodo() {
   const queryClient = useQueryClient();
   const { state } = useAuth();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: number } & UpdateTodoInput) =>
-      updateTodo(state.user!.login, id, data),
+    mutationFn: ({ id, ...data }: { id: number } & UpdateTodoInput) => updateTodo(state.user!.login, id, data),
     onSuccess: (updatedTodo) => {
       queryClient.setQueryData(["todos", updatedTodo.id], updatedTodo);
       queryClient.invalidateQueries({ queryKey: ["todos", "open"] });
@@ -964,7 +939,7 @@ function CompletedLink() {
 
 ## 7. SPA ファイル構成
 
-```
+```text
 apps/spa/
   public/
     404.html                       # GitHub Pages SPA fallback

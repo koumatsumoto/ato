@@ -1,17 +1,17 @@
 name: Deploy OAuth Proxy
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches: [main]
-    paths:
-      - apps/oauth-proxy/**
-      - .github/workflows/deploy-oauth-proxy.yml
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   deploy:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

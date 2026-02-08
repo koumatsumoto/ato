@@ -47,7 +47,7 @@ access_token が漏洩した場合、攻撃者は `repo` スコープの権限�
 
 OAuth の `state` パラメータで CSRF を防止。
 
-```
+```text
 1. OAuth Proxy: crypto.randomUUID() で state を生成
 2. OAuth Proxy: HttpOnly Cookie に保存 (Secure; SameSite=Lax; 10 分 TTL)
 3. OAuth Proxy: state を GitHub OAuth URL に含めてリダイレクト
@@ -84,11 +84,7 @@ window.addEventListener("message", (event) => {
   if (event.origin !== OAUTH_PROXY_ORIGIN) return;
 
   // type 検証
-  if (
-    event.data?.type !== "ato:auth:success" &&
-    event.data?.type !== "ato:auth:error"
-  )
-    return;
+  if (event.data?.type !== "ato:auth:success" && event.data?.type !== "ato:auth:error") return;
 
   // 処理...
 });

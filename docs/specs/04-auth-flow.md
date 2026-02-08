@@ -9,7 +9,7 @@ access_token は SPA の localStorage に保存し、SPA から GitHub API を�
 
 ## 1. OAuth フロー シーケンス図
 
-```
+```text
 SPA (*.github.io)              OAuth Proxy (CF Workers)         GitHub
      |                              |                              |
      |  (1) window.open             |                              |
@@ -186,7 +186,7 @@ return new Response(
 
 GitHub API が 401 を返した場合、token が取り消されたと判断する。
 
-```
+```text
 SPA: GitHub API 呼び出し
   -> 401 Unauthorized
   -> localStorage から token をクリア
@@ -217,7 +217,7 @@ interface AuthContextValue {
 
 ### 4.2 初期化フロー
 
-```
+```text
 アプリ起動
   |
   v
@@ -237,10 +237,7 @@ localStorage から token を読み取り
 // shared/lib/github-client.ts
 const GITHUB_API = "https://api.github.com";
 
-async function githubFetch(
-  path: string,
-  options?: RequestInit,
-): Promise<Response> {
+async function githubFetch(path: string, options?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("ato:token");
   if (!token) {
     throw new AuthError("Not authenticated");
@@ -271,7 +268,7 @@ async function githubFetch(
 
 ログアウトは完全にクライアント側で完結する。サーバー呼び出しは不要。
 
-```
+```text
 SPA:
   1. localStorage から "ato:token" を削除
   2. localStorage から "ato:user" を削除 (キャッシュ)

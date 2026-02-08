@@ -24,7 +24,7 @@ OAuth フローを開始する。state を生成し HttpOnly Cookie に保存し
 
 **リダイレクト先:**
 
-```
+```text
 https://github.com/login/oauth/authorize
   ?client_id={GITHUB_CLIENT_ID}
   &redirect_uri={OAUTH_PROXY_ORIGIN}/auth/callback
@@ -34,7 +34,7 @@ https://github.com/login/oauth/authorize
 
 **Cookie:**
 
-```
+```text
 Set-Cookie: oauth_state={state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/
 ```
 
@@ -60,7 +60,7 @@ GitHub からのコールバックを処理し、access_token を SPA に返却�
 
 **GitHub API 呼び出し:**
 
-```
+```text
 POST https://github.com/login/oauth/access_token
 Headers: Accept: application/json, Content-Type: application/json
 Body: { client_id, client_secret, code }
@@ -75,10 +75,7 @@ Body: { client_id, client_secret, code }
     <p>Logging in...</p>
     <script>
       if (window.opener) {
-        window.opener.postMessage(
-          { type: "ato:auth:success", accessToken: "{access_token}" },
-          "{SPA_ORIGIN}",
-        );
+        window.opener.postMessage({ type: "ato:auth:success", accessToken: "{access_token}" }, "{SPA_ORIGIN}");
       }
       window.close();
     </script>
@@ -146,11 +143,7 @@ function handleLogin(url: URL, env: Env): Response {
   });
 }
 
-async function handleCallback(
-  url: URL,
-  request: Request,
-  env: Env,
-): Promise<Response> {
+async function handleCallback(url: URL, request: Request, env: Env): Promise<Response> {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
 
@@ -235,7 +228,7 @@ function corsHeaders(origin: string): HeadersInit {
 
 ## ファイル構成
 
-```
+```text
 apps/oauth-proxy/
   src/
     index.ts              # Worker エントリポイント (全実装)
@@ -255,7 +248,7 @@ compatibility_date = "2025-01-01"
 
 ### .dev.vars
 
-```
+```text
 GITHUB_CLIENT_ID=your_dev_client_id
 GITHUB_CLIENT_SECRET=your_dev_client_secret
 SPA_ORIGIN=http://localhost:5173

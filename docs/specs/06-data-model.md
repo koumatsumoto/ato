@@ -147,7 +147,7 @@ interface AuthUser {
 
 ### 5.2 フロー
 
-```
+```text
 認証済みリクエスト (SPA -> GitHub API)
   |
   v
@@ -212,7 +212,7 @@ SPA は GitHub API レスポンスの `X-RateLimit-Remaining` ヘッダーを読
 GitHub Issues API はページベースのページネーション (`Link` ヘッダー) を採用。
 SPA が `Link` ヘッダーを解析し、次ページの有無と番号を取得する。
 
-```
+```text
 GitHub Link ヘッダー:
   <...?page=2>; rel="next", <...?page=5>; rel="last"
 

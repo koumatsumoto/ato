@@ -9,7 +9,7 @@ SPA と OAuth Proxy の 2 パッケージ構成。OAuth Proxy は pnpm workspace
 
 ## 1. ディレクトリ構成
 
-```
+```text
 ato/
   .github/
     workflows/
@@ -108,10 +108,7 @@ ato/
     "prepare": "husky"
   },
   "lint-staged": {
-    "apps/spa/**/*.{ts,tsx}": [
-      "pnpm --filter @ato/spa exec eslint --fix",
-      "prettier --write"
-    ],
+    "apps/spa/**/*.{ts,tsx}": ["pnpm --filter @ato/spa exec eslint --fix", "prettier --write"],
     "apps/oauth-proxy/**/*.ts": ["prettier --write"],
     "*.json": ["prettier --write"],
     "*.md": ["prettier --write", "markdownlint --fix"]
@@ -325,10 +322,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/shared/__tests__/setup.ts"],
-    include: [
-      "src/features/**/__tests__/**/*.test.{ts,tsx}",
-      "src/shared/__tests__/**/*.test.{ts,tsx}",
-    ],
+    include: ["src/features/**/__tests__/**/*.test.{ts,tsx}", "src/shared/__tests__/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
@@ -353,12 +347,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores([
-    "**/node_modules",
-    "**/dist",
-    "**/*.config.ts",
-    "**/*.config.mjs",
-  ]),
+  globalIgnores(["**/node_modules", "**/dist", "**/*.config.ts", "**/*.config.mjs"]),
   ...tseslint.configs.recommended,
   {
     plugins: {
@@ -367,10 +356,7 @@ export default defineConfig([
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
   },
 ]);
@@ -384,7 +370,7 @@ export default defineConfig([
 
 ### 3.7 環境変数
 
-```
+```text
 # apps/spa/.env (開発用)
 VITE_OAUTH_PROXY_URL=http://localhost:8787
 ```
@@ -433,7 +419,7 @@ SPA_ORIGIN = "https://{user}.github.io"
 
 ### 4.3 .dev.vars.example
 
-```
+```text
 GITHUB_CLIENT_ID=your_oauth_client_id
 GITHUB_CLIENT_SECRET=your_oauth_client_secret
 SPA_ORIGIN=http://localhost:5173
@@ -543,7 +529,7 @@ TypeScript の `target: ES2023` で主要ブラウザはすべてカバーされ
 
 ## 7. .gitignore
 
-```
+```text
 # Dependencies
 node_modules/
 .pnpm-store/

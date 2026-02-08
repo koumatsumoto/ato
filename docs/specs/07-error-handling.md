@@ -67,10 +67,7 @@ class RepoCreationError extends Error {
 
 ```typescript
 // shared/lib/github-client.ts
-async function githubFetch(
-  path: string,
-  options?: RequestInit,
-): Promise<Response> {
+async function githubFetch(path: string, options?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("ato:token");
   if (!token) {
     throw new AuthError("Not authenticated");
@@ -88,9 +85,7 @@ async function githubFetch(
       },
     });
   } catch {
-    throw new NetworkError(
-      "Unable to connect. Please check your internet connection.",
-    );
+    throw new NetworkError("Unable to connect. Please check your internet connection.");
   }
 
   // 401: token 無効 -> 自動ログアウト
@@ -120,10 +115,7 @@ function extractRateLimit(headers: Headers): RateLimitInfo {
 }
 
 function isRateLimited(response: Response): boolean {
-  return (
-    response.status === 403 &&
-    response.headers.get("X-RateLimit-Remaining") === "0"
-  );
+  return response.status === 403 && response.headers.get("X-RateLimit-Remaining") === "0";
 }
 ```
 
@@ -205,10 +197,7 @@ const queryClient = new QueryClient({
       retry: (failureCount, error) => {
         // 401, 403, 404 はリトライしない
         if (error instanceof AuthError) return false;
-        if (
-          error instanceof GitHubApiError &&
-          [401, 403, 404, 422].includes(error.status)
-        ) {
+        if (error instanceof GitHubApiError && [401, 403, 404, 422].includes(error.status)) {
           return false;
         }
         return failureCount < 2; // 最大 2 回リトライ
@@ -228,7 +217,7 @@ const queryClient = new QueryClient({
 
 ### 5.1 TODO 作成失敗
 
-```
+```text
 1. 楽観的に一覧に追加 (一時 ID)
 2. GitHub API 呼び出し失敗
 3. onError: キャッシュをロールバック (一時 ID のエントリを除去)
@@ -237,7 +226,7 @@ const queryClient = new QueryClient({
 
 ### 5.2 完了トグル失敗
 
-```
+```text
 1. 楽観的に一覧から除外
 2. GitHub API 呼び出し失敗
 3. onError: キャッシュをロールバック (元のリストに戻す)
