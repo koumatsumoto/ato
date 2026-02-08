@@ -6,7 +6,7 @@ OAuth Proxy の唯一の目的は、GitHub OAuth App の `client_secret` を安�
 認可コード (code) を access_token に交換すること。
 
 フレームワーク不使用。Web 標準 API (Request/Response) のみで実装する。
-推定コード量: 約 50-80 行。
+実装コード量: 約 150 行（ヘルパー関数・セキュリティヘッダー含む）。
 
 ---
 

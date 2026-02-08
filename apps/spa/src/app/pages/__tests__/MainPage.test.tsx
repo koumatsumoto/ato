@@ -28,7 +28,7 @@ describe("MainPage", () => {
   });
 
   it("shows loading skeleton when loading", () => {
-    mockOpenTodosReturn = { data: undefined, isLoading: true, error: null };
+    mockOpenTodosReturn = { ...mockOpenTodosReturn, data: undefined, isLoading: true, error: null };
 
     render(
       <MemoryRouter>
@@ -40,7 +40,7 @@ describe("MainPage", () => {
   });
 
   it("shows empty state when no todos", () => {
-    mockOpenTodosReturn = { data: { todos: [] }, isLoading: false, error: null };
+    mockOpenTodosReturn = { ...mockOpenTodosReturn, data: { todos: [] }, isLoading: false, error: null };
 
     render(
       <MemoryRouter>
@@ -53,6 +53,7 @@ describe("MainPage", () => {
 
   it("renders todo items when data is available", () => {
     mockOpenTodosReturn = {
+      ...mockOpenTodosReturn,
       data: {
         todos: [makeTodo({ id: 1, title: "First" }), makeTodo({ id: 2, title: "Second" })],
       },
@@ -72,6 +73,7 @@ describe("MainPage", () => {
 
   it("shows error message when fetch fails", () => {
     mockOpenTodosReturn = {
+      ...mockOpenTodosReturn,
       data: undefined,
       isLoading: false,
       error: new Error("Network error"),
@@ -87,7 +89,7 @@ describe("MainPage", () => {
   });
 
   it("shows completed link", () => {
-    mockOpenTodosReturn = { data: { todos: [] }, isLoading: false, error: null };
+    mockOpenTodosReturn = { ...mockOpenTodosReturn, data: { todos: [] }, isLoading: false, error: null };
 
     render(
       <MemoryRouter>

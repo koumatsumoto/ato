@@ -93,11 +93,14 @@ GET    /user                                        # ユーザー情報
 | バリデーション     | `apps/spa/src/features/todos/lib/validation.ts`       |
 | ページネーション   | `apps/spa/src/features/todos/lib/pagination.ts`       |
 | HTTP クライアント  | `apps/spa/src/shared/lib/github-client.ts`            |
+| レート制限         | `apps/spa/src/shared/lib/rate-limit.ts`               |
+| エラーバナー       | `apps/spa/src/shared/components/ui/ErrorBanner.tsx`   |
 | 環境変数           | `apps/spa/src/shared/lib/env.ts`                      |
 | エラー型           | `apps/spa/src/types/errors.ts`                        |
 | ルーター           | `apps/spa/src/app/router.tsx`                         |
 | プロバイダー       | `apps/spa/src/app/providers.tsx`                      |
 | OAuth Proxy        | `apps/oauth-proxy/src/index.ts`                       |
+| OAuth Proxy テスト | `apps/oauth-proxy/src/__tests__/index.test.ts`        |
 
 ## 環境変数
 

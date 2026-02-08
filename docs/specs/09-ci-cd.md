@@ -77,8 +77,8 @@ jobs:
         run: pnpm --filter @ato/spa test:coverage
 ```
 
-OAuth Proxy は ~50 行の薄い実装のため、CI でのテストジョブは不要。
-SPA のテストのみで十分なカバレッジを確保する。
+CI は SPA と OAuth Proxy の両方でテストを実行する。
+OAuth Proxy は 80% カバレッジ閾値を vitest.config.ts で強制している。
 
 ---
 
