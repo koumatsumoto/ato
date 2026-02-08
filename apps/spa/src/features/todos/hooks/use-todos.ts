@@ -49,6 +49,8 @@ export function useTodo(id: number) {
   });
 }
 
+let nextTempId = -1;
+
 export function useCreateTodo() {
   const queryClient = useQueryClient();
   const { state } = useAuth();
@@ -57,13 +59,14 @@ export function useCreateTodo() {
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: ["todos", "open"] });
       const previous = queryClient.getQueryData<FetchTodosResult>(["todos", "open"]);
+      const tempId = nextTempId--;
 
       queryClient.setQueryData<FetchTodosResult>(["todos", "open"], (old) => ({
         hasNextPage: old?.hasNextPage ?? false,
         nextPage: old?.nextPage ?? null,
         todos: [
           {
-            id: -Date.now(),
+            id: tempId,
             title: input.title,
             body: input.body ?? "",
             state: "open" as const,
@@ -76,15 +79,25 @@ export function useCreateTodo() {
         ],
       }));
 
-      return { previous };
+      return { previous, tempId };
+    },
+    onSuccess: (createdTodo, _input, context) => {
+      queryClient.setQueryData<FetchTodosResult>(["todos", "open"], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          todos: old.todos.map((t) => (t.id === context?.tempId ? createdTodo : t)),
+        };
+      });
+      queryClient.setQueryData(["todos", createdTodo.id], createdTodo);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["todos", "open"] });
+      }, 3000);
     },
     onError: (_err, _input, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["todos", "open"], context.previous);
       }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos", "open"] });
     },
   });
 }
@@ -106,13 +119,16 @@ export function useCloseTodo() {
 
       return { previous };
     },
+    onSuccess: (closedTodo) => {
+      queryClient.setQueryData(["todos", closedTodo.id], closedTodo);
+    },
     onError: (_err, _id, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["todos", "open"], context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos", "closed"] });
     },
   });
 }

@@ -106,7 +106,7 @@ describe("use-todos hooks", () => {
   });
 
   describe("useCreateTodo", () => {
-    it("creates a todo with optimistic update", async () => {
+    it("creates a todo with optimistic update and replaces temp ID with real ID", async () => {
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 1, title: "Existing" })];
       const created = makeIssue({ number: 10, title: "New todo" });
@@ -120,6 +120,8 @@ describe("use-todos hooks", () => {
         expect(todosResult.current.data).toBeDefined();
       });
 
+      expect(todosResult.current.data?.todos).toHaveLength(1);
+
       const { result: createResult } = renderHook(() => useCreateTodo(), { wrapper });
 
       act(() => {
@@ -129,21 +131,94 @@ describe("use-todos hooks", () => {
       await waitFor(() => {
         expect(createResult.current.isSuccess).toBe(true);
       });
+
+      // After mutation success: both items exist with real positive IDs
+      const todos = todosResult.current.data?.todos ?? [];
+      expect(todos).toHaveLength(2);
+      expect(todos.every((t) => t.id > 0)).toBe(true);
+      expect(todos.find((t) => t.id === 10)).toBeDefined();
+      expect(todos.find((t) => t.id === 1)).toBeDefined();
     });
-  });
 
-  describe("useCloseTodo", () => {
-    it("closes a todo", async () => {
+    it("rolls back optimistic update on mutation error", async () => {
       setupAuthenticatedUser();
-      const closed = makeIssue({ number: 1, state: "closed" });
+      const issues = [makeIssue({ number: 1, title: "Existing" })];
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: [makeIssue({ number: 1 })] }, { body: closed });
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: { message: "Server error" }, status: 500 });
 
       const wrapper = createWrapper();
       const { result: todosResult } = renderHook(() => useOpenTodos(), { wrapper });
 
       await waitFor(() => {
         expect(todosResult.current.data).toBeDefined();
+      });
+
+      const { result: createResult } = renderHook(() => useCreateTodo(), { wrapper });
+
+      act(() => {
+        createResult.current.mutate({ title: "Will fail" });
+      });
+
+      // After error, rolled back to original single item
+      await waitFor(() => {
+        expect(createResult.current.isError).toBe(true);
+      });
+
+      await waitFor(() => {
+        const todos = todosResult.current.data?.todos ?? [];
+        expect(todos).toHaveLength(1);
+        expect(todos[0]?.id).toBe(1);
+      });
+    });
+  });
+
+  describe("useCloseTodo", () => {
+    it("closes a todo with optimistic removal", async () => {
+      setupAuthenticatedUser();
+      const issues = [makeIssue({ number: 1 }), makeIssue({ number: 2 })];
+      const closed = makeIssue({ number: 1, state: "closed", closed_at: "2026-01-02T00:00:00Z" });
+
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: closed });
+
+      const wrapper = createWrapper();
+      const { result: todosResult } = renderHook(() => useOpenTodos(), { wrapper });
+
+      await waitFor(() => {
+        expect(todosResult.current.data?.todos).toHaveLength(2);
+      });
+
+      const { result: closeResult } = renderHook(() => useCloseTodo(), { wrapper });
+
+      act(() => {
+        closeResult.current.mutate(1);
+      });
+
+      // Optimistic removal: item disappears immediately
+      await waitFor(() => {
+        const todos = todosResult.current.data?.todos ?? [];
+        expect(todos).toHaveLength(1);
+        expect(todos[0]?.id).toBe(2);
+      });
+
+      await waitFor(() => {
+        expect(closeResult.current.isSuccess).toBe(true);
+      });
+
+      // Item remains removed from open list after mutation completes
+      expect(todosResult.current.data?.todos).toHaveLength(1);
+    });
+
+    it("rolls back optimistic removal on close error", async () => {
+      setupAuthenticatedUser();
+      const issues = [makeIssue({ number: 1 }), makeIssue({ number: 2 })];
+
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: { message: "Server error" }, status: 500 });
+
+      const wrapper = createWrapper();
+      const { result: todosResult } = renderHook(() => useOpenTodos(), { wrapper });
+
+      await waitFor(() => {
+        expect(todosResult.current.data?.todos).toHaveLength(2);
       });
 
       const { result: closeResult } = renderHook(() => useCloseTodo(), { wrapper });
@@ -153,7 +228,12 @@ describe("use-todos hooks", () => {
       });
 
       await waitFor(() => {
-        expect(closeResult.current.isSuccess).toBe(true);
+        expect(closeResult.current.isError).toBe(true);
+      });
+
+      // Rolled back: both items restored
+      await waitFor(() => {
+        expect(todosResult.current.data?.todos).toHaveLength(2);
       });
     });
   });
