@@ -5,10 +5,13 @@ import { MainPage } from "../MainPage";
 import type { Todo } from "@/types";
 import { makeTodo } from "@/shared/__tests__/factories";
 
+const mockRefetch = vi.fn();
+
 let mockOpenTodosReturn: {
   data: { todos: readonly Todo[] } | undefined;
   isLoading: boolean;
   error: Error | null;
+  refetch: ReturnType<typeof vi.fn>;
 };
 
 vi.mock("@/features/todos/hooks/use-todos", () => ({
@@ -21,7 +24,7 @@ vi.mock("@/features/todos/hooks/use-todos", () => ({
 describe("MainPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockOpenTodosReturn = { data: undefined, isLoading: false, error: null };
+    mockOpenTodosReturn = { data: undefined, isLoading: false, error: null, refetch: mockRefetch };
   });
 
   it("shows loading skeleton when loading", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { AuthError, NetworkError } from "@/types";
+import { AuthError, NetworkError, RateLimitError } from "@/types";
 
 describe("githubFetch", () => {
   const originalFetch = globalThis.fetch;
@@ -89,6 +89,23 @@ describe("githubFetch", () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.login).toBe("user");
+  });
+
+  it("throws RateLimitError when rate limited", async () => {
+    localStorage.setItem("ato:token", "valid-token");
+    const resetTimestamp = Math.floor(Date.now() / 1000) + 3600;
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response("Rate limit exceeded", {
+        status: 403,
+        headers: {
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(resetTimestamp),
+        },
+      }),
+    );
+
+    const githubFetch = await loadGithubFetch();
+    await expect(githubFetch("/user")).rejects.toThrow(RateLimitError);
   });
 
   it("does not throw on non-401 error responses", async () => {

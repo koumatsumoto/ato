@@ -7,12 +7,15 @@ import type { Todo } from "@/types";
 import { makeTodo } from "@/shared/__tests__/factories";
 
 const mockFetchNextPage = vi.fn();
+const mockRefetch = vi.fn();
 let mockClosedTodosReturn: {
   data: { pages: Array<{ todos: readonly Todo[] }> } | undefined;
   fetchNextPage: typeof mockFetchNextPage;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   isLoading: boolean;
+  error: Error | null;
+  refetch: ReturnType<typeof vi.fn>;
 };
 
 vi.mock("@/features/todos/hooks/use-todos", () => ({
@@ -30,6 +33,8 @@ describe("CompletedPage", () => {
       hasNextPage: false,
       isFetchingNextPage: false,
       isLoading: false,
+      error: null,
+      refetch: mockRefetch,
     };
   });
 
@@ -100,6 +105,18 @@ describe("CompletedPage", () => {
     await user.click(screen.getByRole("button", { name: "Load more" }));
 
     expect(mockFetchNextPage).toHaveBeenCalledOnce();
+  });
+
+  it("shows error banner when fetch fails", () => {
+    mockClosedTodosReturn = { ...mockClosedTodosReturn, error: new Error("API error") };
+
+    render(
+      <MemoryRouter>
+        <CompletedPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("API error");
   });
 
   it("shows back to todos link", () => {
