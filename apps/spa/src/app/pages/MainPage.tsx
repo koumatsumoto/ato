@@ -41,7 +41,7 @@ export function MainPage() {
           <ErrorBanner error={activeQuery.error} onRetry={() => void activeQuery.refetch()} />
         ) : actions.length === 0 ? (
           isSearching ? (
-            <p className="py-8 text-center text-sm text-gray-400">該当する行動が見つかりませんでした。</p>
+            <p className="py-8 text-center text-sm text-gray-400">やることが見つかりませんでした。</p>
           ) : (
             <ActionEmptyState />
           )

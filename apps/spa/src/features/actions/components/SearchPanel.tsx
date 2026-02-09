@@ -70,7 +70,7 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
             type="text"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
-            placeholder="行動を検索..."
+            placeholder="やることを検索..."
             className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:bg-white focus:outline-none"
           />
         </div>

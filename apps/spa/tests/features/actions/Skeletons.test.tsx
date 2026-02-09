@@ -12,7 +12,7 @@ describe("ListSkeleton", () => {
     render(<ListSkeleton />);
 
     const skeleton = screen.getByRole("status");
-    expect(skeleton).toHaveAccessibleName("行動を読み込み中");
+    expect(skeleton).toHaveAccessibleName("やることを読み込み中");
   });
 });
 
@@ -21,6 +21,6 @@ describe("DetailSkeleton", () => {
     render(<DetailSkeleton />);
 
     const skeleton = screen.getByRole("status");
-    expect(skeleton).toHaveAccessibleName("行動を読み込み中");
+    expect(skeleton).toHaveAccessibleName("やることを読み込み中");
   });
 });

@@ -27,7 +27,7 @@ export function ActionAddForm() {
     }
   };
 
-  const placeholder = isFocused ? "新しい行動のタイトルを入力してください" : "行動を追加";
+  const placeholder = isFocused ? "新しいやることを入力してください" : "やることを追加";
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.1)]" style={{ paddingBottom: "var(--sab)" }}>

@@ -78,7 +78,7 @@ describe("DetailPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("status", { name: "行動を読み込み中" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "やることを読み込み中" })).toBeInTheDocument();
   });
 
   it("shows not found when action does not exist", () => {

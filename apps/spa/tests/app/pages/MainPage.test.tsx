@@ -41,7 +41,7 @@ describe("MainPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("status", { name: "行動を読み込み中" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "やることを読み込み中" })).toBeInTheDocument();
   });
 
   it("shows empty state when no actions", () => {
@@ -53,7 +53,7 @@ describe("MainPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("行動はまだありません。下のフォームから追加しましょう。")).toBeInTheDocument();
+    expect(screen.getByText("やることはまだありません。下のフォームから追加しましょう。")).toBeInTheDocument();
   });
 
   it("renders action items when data is available", () => {

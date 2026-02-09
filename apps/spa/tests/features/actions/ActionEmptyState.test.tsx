@@ -6,6 +6,6 @@ describe("ActionEmptyState", () => {
   it("renders empty state message", () => {
     render(<ActionEmptyState />);
 
-    expect(screen.getByText("行動はまだありません。下のフォームから追加しましょう。")).toBeInTheDocument();
+    expect(screen.getByText("やることはまだありません。下のフォームから追加しましょう。")).toBeInTheDocument();
   });
 });

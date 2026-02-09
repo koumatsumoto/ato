@@ -1,6 +1,6 @@
 # ATO - 日々の跡を残すメモアプリ
 
-GitHub Issues をバックエンドに使うメモアプリ。1 Issue = 1 行動(Action)。
+GitHub Issues をバックエンドに使うメモアプリ。1 Issue = 1 やること(Action)。
 用語の詳細は `docs/specs/10-terminology.md` を参照。
 
 ## テックスタック
@@ -66,16 +66,16 @@ Vite dev server は `/auth/*` を自動的に localhost:8787 にプロキシす�
 
 ### データフロー
 
-SPA が GitHub REST API (`api.github.com`) を直接呼び出す（CORS 対応）。プライベートリポジトリ `ato-datastore` に Issue として行動を保存。初回行動作成時にリポジトリを自動作成。
+SPA が GitHub REST API (`api.github.com`) を直接呼び出す（CORS 対応）。プライベートリポジトリ `ato-datastore` に Issue としてやることを保存。初回作成時にリポジトリを自動作成。
 
 ### GitHub API エンドポイント
 
 ```text
-GET    /repos/{login}/ato-datastore/issues          # 行動一覧
-POST   /repos/{login}/ato-datastore/issues          # 行動作成
-GET    /repos/{login}/ato-datastore/issues/{id}     # 行動取得
-PATCH  /repos/{login}/ato-datastore/issues/{id}     # 行動更新 (close/reopen)
-GET    /search/issues?q=repo:{login}/ato-datastore  # 行動検索
+GET    /repos/{login}/ato-datastore/issues          # やること一覧
+POST   /repos/{login}/ato-datastore/issues          # やること作成
+GET    /repos/{login}/ato-datastore/issues/{id}     # やること取得
+PATCH  /repos/{login}/ato-datastore/issues/{id}     # やること更新 (close/reopen)
+GET    /search/issues?q=repo:{login}/ato-datastore  # やること検索
 POST   /user/repos                                  # リポジトリ自動作成
 GET    /user                                        # ユーザー情報
 ```
@@ -157,15 +157,15 @@ SPA_ORIGIN=http://localhost:5173
 
 詳細な設計情報は `docs/specs/` を参照:
 
-| ファイル             | 内容                    |
-| -------------------- | ----------------------- |
-| 01-architecture.md   | システム設計、ADR       |
-| 02-monorepo-setup.md | ワークスペース設定      |
-| 03-oauth-proxy.md    | OAuth Proxy 実装詳細    |
-| 04-auth-flow.md      | 認証フロー詳細          |
-| 05-spa-design.md     | SPA 構造、ルーティング  |
-| 06-data-model.md     | データ型、スキーマ      |
-| 07-error-handling.md | エラーハンドリング戦略  |
-| 08-security.md       | セキュリティ対策        |
-| 09-ci-cd.md          | CI/CD パイプライン      |
-| 10-terminology.md    | 用語定義（行動/Action） |
+| ファイル             | 内容                        |
+| -------------------- | --------------------------- |
+| 01-architecture.md   | システム設計、ADR           |
+| 02-monorepo-setup.md | ワークスペース設定          |
+| 03-oauth-proxy.md    | OAuth Proxy 実装詳細        |
+| 04-auth-flow.md      | 認証フロー詳細              |
+| 05-spa-design.md     | SPA 構造、ルーティング      |
+| 06-data-model.md     | データ型、スキーマ          |
+| 07-error-handling.md | エラーハンドリング戦略      |
+| 08-security.md       | セキュリティ対策            |
+| 09-ci-cd.md          | CI/CD パイプライン          |
+| 10-terminology.md    | 用語定義（やること/Action） |
