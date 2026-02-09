@@ -12,9 +12,16 @@ try {
   commitHash = "unknown";
 }
 
-const now = new Date();
-const pad = (n: number) => String(n).padStart(2, "0");
-const timestamp = `${pad(now.getMonth() + 1)}${pad(now.getDate())}T${pad(now.getHours())}${pad(now.getMinutes())}`;
+const jstParts = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Tokyo",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+}).formatToParts(new Date());
+const jstGet = (type: Intl.DateTimeFormatPartTypes) => jstParts.find((p) => p.type === type)!.value;
+const timestamp = `${jstGet("month")}${jstGet("day")}T${jstGet("hour")}${jstGet("minute")}`;
 const appVersion = `${commitHash}@${timestamp}`;
 
 export default defineConfig({
