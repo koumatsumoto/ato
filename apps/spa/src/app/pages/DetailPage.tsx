@@ -4,6 +4,7 @@ import { useAction, useCloseAction, useReopenAction, useUpdateAction } from "@/f
 import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
 import { useRelativeTime } from "@/shared/hooks/use-relative-time";
 import { addRecentLabels } from "@/features/actions/lib/label-store";
+import { getDraft, removeDraft } from "@/features/actions/lib/draft-store";
 import { DetailSkeleton } from "@/features/actions/components/DetailSkeleton";
 import { LabelEditor } from "@/features/actions/components/LabelEditor";
 import { NotFound } from "@/shared/components/ui/NotFound";
@@ -22,6 +23,7 @@ export function DetailPage() {
   const [memo, setMemo] = useState("");
   const [labels, setLabels] = useState<readonly string[]>([]);
   const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef(title);
   titleRef.current = title;
@@ -31,12 +33,29 @@ export function DetailPage() {
 
   useEffect(() => {
     if (action && !initializedRef.current) {
-      setTitle(action.title);
-      setMemo(action.memo);
-      setLabels(action.labels);
+      const draft = getDraft(action.id);
+
+      if (draft && new Date(draft.savedAt).getTime() > new Date(action.updatedAt).getTime()) {
+        setTitle(draft.title);
+        setMemo(draft.memo);
+        setLabels(action.labels);
+        setRestoredFromDraft(true);
+      } else {
+        setTitle(action.title);
+        setMemo(action.memo);
+        setLabels(action.labels);
+        if (draft) removeDraft(action.id);
+      }
+
       initializedRef.current = true;
     }
   }, [action]);
+
+  useEffect(() => {
+    if (!restoredFromDraft) return;
+    const timer = setTimeout(() => setRestoredFromDraft(false), 5_000);
+    return () => clearTimeout(timer);
+  }, [restoredFromDraft]);
 
   const { lastSavedAt, isSaving, saveNow } = useAutoSave({
     id: Number(id),
@@ -151,8 +170,9 @@ export function DetailPage() {
         maxLength={65536}
       />
       <div className="mt-1 text-right">
-        {isSaving && <span className="text-xs text-gray-400">保存中...</span>}
-        {!isSaving && savedTimeText && <span className="text-xs text-gray-400">最終更新 {savedTimeText}</span>}
+        {restoredFromDraft && <span className="text-xs text-amber-600">下書きから復元しました</span>}
+        {!restoredFromDraft && isSaving && <span className="text-xs text-gray-400">保存中...</span>}
+        {!restoredFromDraft && !isSaving && savedTimeText && <span className="text-xs text-gray-400">最終更新 {savedTimeText}</span>}
       </div>
     </div>
   );

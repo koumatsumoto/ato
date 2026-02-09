@@ -10,7 +10,16 @@ vi.mock("@/features/actions/hooks/use-actions", () => ({
   }),
 }));
 
+const mockSaveDraft = vi.fn();
+const mockRemoveDraft = vi.fn();
+
+vi.mock("@/features/actions/lib/draft-store", () => ({
+  saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
+  removeDraft: (...args: unknown[]) => mockRemoveDraft(...args),
+}));
+
 import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
+import { NetworkError } from "@/shared/lib/errors";
 
 function defaultParams(overrides: Record<string, unknown> = {}) {
   return {
@@ -28,6 +37,7 @@ describe("useAutoSave", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -200,6 +210,117 @@ describe("useAutoSave", () => {
 
       expect(result.current.lastSavedAt).not.toBeNull();
       expect(result.current.lastSavedAt!.getTime()).toBeGreaterThanOrEqual(beforeSave);
+    });
+
+    it("removes draft on successful save", () => {
+      const { result, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      rerender(defaultParams({ title: "New title" }));
+
+      act(() => {
+        result.current.saveNow();
+      });
+
+      const onSuccess = mockMutate.mock.calls[0]![1].onSuccess;
+
+      act(() => {
+        onSuccess();
+      });
+
+      expect(mockRemoveDraft).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe("NetworkError draft fallback", () => {
+    it("saves draft to localStorage when mutation fails with NetworkError", () => {
+      const { result, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      rerender(defaultParams({ title: "Offline edit" }));
+
+      act(() => {
+        result.current.saveNow();
+      });
+
+      const onError = mockMutate.mock.calls[0]![1].onError;
+
+      act(() => {
+        onError(new NetworkError("offline"));
+      });
+
+      expect(mockSaveDraft).toHaveBeenCalledWith(1, {
+        title: "Offline edit",
+        memo: "Test memo",
+        savedAt: expect.any(String),
+        serverUpdatedAt: "2026-01-15T10:00:00Z",
+      });
+    });
+
+    it("does not save draft for non-NetworkError", () => {
+      const { result, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      rerender(defaultParams({ title: "Some edit" }));
+
+      act(() => {
+        result.current.saveNow();
+      });
+
+      const onError = mockMutate.mock.calls[0]![1].onError;
+
+      act(() => {
+        onError(new Error("other error"));
+      });
+
+      expect(mockSaveDraft).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("unmount save", () => {
+    it("triggers mutation and saves draft on unmount when dirty", () => {
+      const { unmount, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      rerender(defaultParams({ title: "Unsaved title" }));
+      mockMutate.mockClear();
+
+      unmount();
+
+      expect(mockMutate).toHaveBeenCalledWith({ id: 1, title: "Unsaved title", memo: "Test memo" });
+      expect(mockSaveDraft).toHaveBeenCalledWith(1, {
+        title: "Unsaved title",
+        memo: "Test memo",
+        savedAt: expect.any(String),
+        serverUpdatedAt: "2026-01-15T10:00:00Z",
+      });
+    });
+
+    it("does not trigger mutation or save draft on unmount when not dirty", () => {
+      const { unmount } = renderHook(() => useAutoSave(defaultParams()));
+
+      unmount();
+
+      expect(mockMutate).not.toHaveBeenCalled();
+      expect(mockSaveDraft).not.toHaveBeenCalled();
+    });
+
+    it("does not save draft on unmount when title is invalid", () => {
+      const { unmount, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      rerender(defaultParams({ title: "", originalTitle: "original" }));
+      mockMutate.mockClear();
+
+      unmount();
+
+      expect(mockMutate).not.toHaveBeenCalled();
+      expect(mockSaveDraft).not.toHaveBeenCalled();
     });
   });
 });

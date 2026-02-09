@@ -49,6 +49,14 @@ vi.mock("@/features/actions/lib/label-store", () => ({
   clearRecentLabels: vi.fn(),
 }));
 
+const mockGetDraft = vi.fn().mockReturnValue(null);
+const mockRemoveDraft = vi.fn();
+
+vi.mock("@/features/actions/lib/draft-store", () => ({
+  getDraft: (...args: unknown[]) => mockGetDraft(...args),
+  removeDraft: (...args: unknown[]) => mockRemoveDraft(...args),
+}));
+
 vi.mock("@uiball/loaders", () => ({
   Waveform: () => <div data-testid="waveform" />,
 }));
@@ -148,6 +156,104 @@ describe("DetailPage", () => {
       );
 
       expect(screen.getByText("保存中...")).toBeInTheDocument();
+    });
+  });
+
+  describe("draft restoration", () => {
+    it("restores from draft when draft is newer than server", () => {
+      mockActionReturn = {
+        data: makeAction({ id: 5, title: "Server title", memo: "Server memo", updatedAt: "2026-01-01T00:00:00Z" }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      };
+      mockGetDraft.mockReturnValue({
+        title: "Draft title",
+        memo: "Draft memo",
+        savedAt: "2026-01-02T00:00:00Z",
+        serverUpdatedAt: "2026-01-01T00:00:00Z",
+      });
+
+      render(
+        <MemoryRouter>
+          <DetailPage />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByText("Draft title")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Draft memo")).toBeInTheDocument();
+      expect(screen.getByText("下書きから復元しました")).toBeInTheDocument();
+    });
+
+    it("uses server data and removes draft when server is newer", () => {
+      mockActionReturn = {
+        data: makeAction({ id: 5, title: "Server title", memo: "Server memo", updatedAt: "2026-01-03T00:00:00Z" }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      };
+      mockGetDraft.mockReturnValue({
+        title: "Old draft",
+        memo: "Old memo",
+        savedAt: "2026-01-01T00:00:00Z",
+        serverUpdatedAt: "2025-12-31T00:00:00Z",
+      });
+
+      render(
+        <MemoryRouter>
+          <DetailPage />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByText("Server title")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Server memo")).toBeInTheDocument();
+      expect(mockRemoveDraft).toHaveBeenCalledWith(5);
+    });
+
+    it("uses server data and removes draft when timestamps are equal", () => {
+      const sameTime = "2026-01-01T12:00:00Z";
+      mockActionReturn = {
+        data: makeAction({ id: 5, title: "Server title", memo: "Server memo", updatedAt: sameTime }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      };
+      mockGetDraft.mockReturnValue({
+        title: "Draft title",
+        memo: "Draft memo",
+        savedAt: sameTime,
+        serverUpdatedAt: sameTime,
+      });
+
+      render(
+        <MemoryRouter>
+          <DetailPage />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByText("Server title")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Server memo")).toBeInTheDocument();
+      expect(mockRemoveDraft).toHaveBeenCalledWith(5);
+    });
+
+    it("uses server data when no draft exists", () => {
+      mockActionReturn = {
+        data: makeAction({ id: 5, title: "Server title", memo: "Server memo" }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      };
+      mockGetDraft.mockReturnValue(null);
+
+      render(
+        <MemoryRouter>
+          <DetailPage />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByText("Server title")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Server memo")).toBeInTheDocument();
+      expect(mockRemoveDraft).not.toHaveBeenCalled();
     });
   });
 

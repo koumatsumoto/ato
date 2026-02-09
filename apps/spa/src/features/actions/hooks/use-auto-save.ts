@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useUpdateAction } from "./use-actions";
 import { updateActionSchema } from "@/features/actions/lib/validation";
+import { saveDraft, removeDraft } from "@/features/actions/lib/draft-store";
+import { NetworkError } from "@/shared/lib/errors";
 
 interface UseAutoSaveParams {
   readonly id: number;
@@ -33,6 +35,13 @@ export function useAutoSave({ id, title, memo, originalTitle, originalMemo, upda
   const lastSavedMemoRef = useRef(originalMemo);
   const mutateRef = useRef(updateAction.mutate);
   mutateRef.current = updateAction.mutate;
+
+  const currentTitleRef = useRef(title);
+  const currentMemoRef = useRef(memo);
+  const updatedAtRef = useRef(updatedAt);
+  currentTitleRef.current = title;
+  currentMemoRef.current = memo;
+  updatedAtRef.current = updatedAt;
 
   useEffect(() => {
     lastSavedTitleRef.current = originalTitle;
@@ -68,6 +77,17 @@ export function useAutoSave({ id, title, memo, originalTitle, originalMemo, upda
               lastSavedTitleRef.current = saveTitle;
               lastSavedMemoRef.current = saveMemo;
               setLastSavedAt(new Date());
+              removeDraft(id);
+            }
+          },
+          onError: (error: Error) => {
+            if (error instanceof NetworkError) {
+              saveDraft(id, {
+                title: saveTitle,
+                memo: saveMemo,
+                savedAt: new Date().toISOString(),
+                serverUpdatedAt: updatedAtRef.current,
+              });
             }
           },
         },
@@ -83,6 +103,27 @@ export function useAutoSave({ id, title, memo, originalTitle, originalMemo, upda
   const saveNow = useCallback(() => {
     performSave(title, memo);
   }, [title, memo, performSave]);
+
+  useEffect(() => {
+    return () => {
+      const unmountTitle = currentTitleRef.current;
+      const unmountMemo = currentMemoRef.current;
+      const dirty = unmountTitle !== lastSavedTitleRef.current || unmountMemo !== lastSavedMemoRef.current;
+      if (!dirty) return;
+
+      const validated = updateActionSchema.safeParse({ title: unmountTitle, memo: unmountMemo });
+      if (!validated.success) return;
+
+      mutateRef.current({ id, title: validated.data.title, memo: validated.data.memo });
+
+      saveDraft(id, {
+        title: unmountTitle,
+        memo: unmountMemo,
+        savedAt: new Date().toISOString(),
+        serverUpdatedAt: updatedAtRef.current,
+      });
+    };
+  }, [id]);
 
   return { lastSavedAt, isSaving: updateAction.isPending, isDirty, saveNow };
 }
