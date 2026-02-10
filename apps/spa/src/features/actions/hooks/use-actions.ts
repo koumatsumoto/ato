@@ -91,9 +91,6 @@ export function useCreateAction() {
         };
       });
       queryClient.setQueryData(["actions", createdAction.id], createdAction);
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["actions", "open"] });
-      }, 3000);
     },
     onError: (_err, _input, context) => {
       if (context?.previous) {
@@ -152,7 +149,13 @@ export function useUpdateAction() {
     mutationFn: ({ id, ...data }: { id: number } & UpdateActionInput) => updateAction(state.user!.login, id, data),
     onSuccess: (updatedAction: Action) => {
       queryClient.setQueryData(["actions", updatedAction.id], updatedAction);
-      queryClient.invalidateQueries({ queryKey: ["actions", "open"] });
+      queryClient.setQueryData<FetchActionsResult>(["actions", "open"], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          actions: old.actions.map((a) => (a.id === updatedAction.id ? updatedAction : a)),
+        };
+      });
     },
   });
 }

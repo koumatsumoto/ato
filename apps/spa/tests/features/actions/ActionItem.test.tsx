@@ -97,4 +97,62 @@ describe("ActionItem", () => {
 
     expect(screen.getByText("Test action")).toHaveClass("line-through");
   });
+
+  describe("saving state (negative ID)", () => {
+    it("renders with reduced opacity when action has negative ID", () => {
+      const { container } = render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ id: -1 })} />
+        </MemoryRouter>,
+      );
+
+      const row = container.querySelector("[role='button']")!;
+      expect(row.className).toContain("opacity-50");
+    });
+
+    it("does not navigate when clicking a saving action", async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ id: -2 })} />
+        </MemoryRouter>,
+      );
+
+      await user.click(screen.getByText("Test action"));
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it("does not call close when toggling a saving action", async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ id: -1, state: "open" })} />
+        </MemoryRouter>,
+      );
+
+      await user.click(screen.getByLabelText("完了にする"));
+      expect(mockCloseMutate).not.toHaveBeenCalled();
+    });
+
+    it("has disabled toggle button when saving", () => {
+      render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ id: -3 })} />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByLabelText("完了にする")).toBeDisabled();
+    });
+
+    it("has aria-disabled attribute when saving", () => {
+      const { container } = render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ id: -1 })} />
+        </MemoryRouter>,
+      );
+
+      const row = container.querySelector("[role='button']")!;
+      expect(row).toHaveAttribute("aria-disabled", "true");
+    });
+  });
 });

@@ -132,7 +132,7 @@ describe("use-actions hooks", () => {
         expect(createResult.current.isSuccess).toBe(true);
       });
 
-      // After mutation success: both items exist with real positive IDs
+      // After mutation success: both items exist with real positive IDs (no refetch needed)
       const actions = actionsResult.current.data?.actions ?? [];
       expect(actions).toHaveLength(2);
       expect(actions.every((t) => t.id > 0)).toBe(true);
@@ -288,6 +288,35 @@ describe("use-actions hooks", () => {
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
+    });
+
+    it("updates the open actions list cache directly on success", async () => {
+      setupAuthenticatedUser();
+      const issues = [makeIssue({ number: 5, title: "Original" })];
+      const updated = makeIssue({ number: 5, title: "Updated" });
+
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: updated });
+
+      const wrapper = createWrapper();
+      const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
+
+      await waitFor(() => {
+        expect(actionsResult.current.data).toBeDefined();
+      });
+
+      const { result } = renderHook(() => useUpdateAction(), { wrapper });
+
+      act(() => {
+        result.current.mutate({ id: 5, title: "Updated" });
+      });
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      // Open list cache should be updated directly without refetch
+      const actions = actionsResult.current.data?.actions ?? [];
+      expect(actions.find((a) => a.id === 5)?.title).toBe("Updated");
     });
   });
 });
