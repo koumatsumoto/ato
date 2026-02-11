@@ -19,6 +19,7 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
       },
+      cache: "no-store",
     });
   } catch {
     throw new NetworkError("Unable to connect. Please check your internet connection.");

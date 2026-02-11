@@ -60,6 +60,19 @@ describe("githubFetch", () => {
       Authorization: "Bearer test-token",
       "Content-Type": "application/json",
     });
+    expect(options.cache).toBe("no-store");
+  });
+
+  it("sets cache: 'no-store' to bypass browser HTTP cache", async () => {
+    localStorage.setItem("ato:token", "test-token");
+    const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    globalThis.fetch = mockFetch;
+
+    const githubFetch = await loadGithubFetch();
+    await githubFetch("/user");
+
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(options.cache).toBe("no-store");
   });
 
   it("throws AuthError on 401 response without clearing token", async () => {
