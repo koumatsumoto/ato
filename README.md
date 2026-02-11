@@ -26,26 +26,16 @@ cp apps/oauth-proxy/.dev.vars.example apps/oauth-proxy/.dev.vars
 ## 開発コマンド
 
 ```bash
-# SPA 開発サーバー (http://localhost:5173)
-pnpm dev
+pnpm dev              # SPA + OAuth Proxy を同時起動
 
-# OAuth Proxy 開発サーバー (http://localhost:8787)
-pnpm dev:proxy
+pnpm dev:spa          # SPA のみ (http://localhost:5173)
+pnpm dev:proxy        # OAuth Proxy のみ (http://localhost:8787)
 
-# TypeScript 型チェック
-pnpm typecheck
-
-# Lint
-pnpm lint
-
-# テスト
-pnpm test
-
-# ビルド
-pnpm build
-
-# フォーマット
-pnpm format
+pnpm typecheck        # TypeScript 型チェック
+pnpm lint             # Lint
+pnpm test             # テスト
+pnpm build            # ビルド
+pnpm format           # フォーマット
 ```
 
 ## プロジェクト構成

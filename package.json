@@ -8,7 +8,8 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @ato/spa dev",
+    "dev": "concurrently -n spa,proxy -c blue,green \"pnpm dev:spa\" \"pnpm dev:proxy\"",
+    "dev:spa": "pnpm --filter @ato/spa dev",
     "dev:proxy": "pnpm --filter @ato/oauth-proxy dev",
     "build": "pnpm --filter @ato/spa build",
     "test": "pnpm --filter @ato/spa test && pnpm --filter @ato/oauth-proxy test",
@@ -47,6 +48,7 @@
     ]
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "husky": "^9",
     "lint-staged": "^16",
     "markdownlint-cli": "^0.43",

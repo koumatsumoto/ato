@@ -40,7 +40,8 @@ Feature-driven 構成: コードは種別（components, hooks）ではなくド�
 ## 開発コマンド
 
 ```bash
-pnpm dev              # SPA 開発サーバー (localhost:5173/ato)
+pnpm dev              # SPA + OAuth Proxy 同時起動 (concurrently)
+pnpm dev:spa          # SPA 開発サーバー (localhost:5173/ato)
 pnpm dev:proxy        # OAuth Proxy (localhost:8787)
 pnpm build            # SPA ビルド (tsc + vite)
 pnpm test             # 全テスト実行 (SPA + OAuth Proxy)
