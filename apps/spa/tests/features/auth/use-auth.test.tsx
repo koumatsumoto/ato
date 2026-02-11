@@ -30,6 +30,7 @@ describe("useAuth", () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("returns unauthenticated state when no token exists", () => {
@@ -69,18 +70,41 @@ describe("useAuth", () => {
     });
   });
 
-  it("clears token on 401 during user fetch", async () => {
+  it("clears token after retries exhausted on persistent 401", async () => {
+    vi.useFakeTimers();
     localStorage.setItem("ato:token", "expired-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
-    await waitFor(() => {
-      expect(result.current.state.isLoading).toBe(false);
+    await act(async () => {
+      await vi.runAllTimersAsync();
     });
 
     expect(result.current.state.token).toBeNull();
     expect(result.current.state.user).toBeNull();
+    expect(localStorage.getItem("ato:token")).toBeNull();
+  });
+
+  it("recovers from transient 401 on retry", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("ato:token", "valid-token");
+
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ login: "testuser", id: 123, avatar_url: "https://example.com/avatar" }), { status: 200 }),
+    );
+    globalThis.fetch = mockFetch;
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(result.current.state.token).toBe("valid-token");
+    expect(result.current.state.user?.login).toBe("testuser");
   });
 
   it("logout clears all auth state", async () => {

@@ -25,7 +25,6 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
   }
 
   if (response.status === 401) {
-    localStorage.removeItem("ato:token");
     throw new AuthError("Token expired or revoked");
   }
 

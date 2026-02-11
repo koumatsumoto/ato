@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Action, CreateActionInput, UpdateActionInput } from "@/features/actions/types";
+import type { CreateActionInput, UpdateActionInput } from "@/features/actions/types";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ensureRepository } from "@/features/actions/lib/repo-init";
 import { fetchActions, createAction, fetchAction, updateAction, closeAction, reopenAction } from "@/features/actions/lib/github-api";
@@ -19,7 +19,6 @@ export function useOpenActions() {
       });
     },
     enabled: !!state.user,
-    staleTime: 30_000,
   });
 }
 
@@ -36,7 +35,6 @@ export function useClosedActions() {
     enabled: !!state.user,
     initialPageParam: 1,
     getNextPageParam: (lastPage: FetchActionsResult) => (lastPage.hasNextPage ? lastPage.nextPage : undefined),
-    staleTime: 60_000,
   });
 }
 
@@ -82,20 +80,13 @@ export function useCreateAction() {
 
       return { previous, tempId };
     },
-    onSuccess: (createdAction, _input, context) => {
-      queryClient.setQueryData<FetchActionsResult>(["actions", "open"], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          actions: old.actions.map((t) => (t.id === context?.tempId ? createdAction : t)),
-        };
-      });
-      queryClient.setQueryData(["actions", createdAction.id], createdAction);
-    },
     onError: (_err, _input, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["actions", "open"], context.previous);
       }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["actions"] });
     },
   });
 }
@@ -117,16 +108,13 @@ export function useCloseAction() {
 
       return { previous };
     },
-    onSuccess: (closedAction) => {
-      queryClient.setQueryData(["actions", closedAction.id], closedAction);
-    },
     onError: (_err, _id, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["actions", "open"], context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["actions", "closed"] });
+      queryClient.invalidateQueries({ queryKey: ["actions"] });
     },
   });
 }
@@ -147,15 +135,8 @@ export function useUpdateAction() {
   const { state } = useAuth();
   return useMutation({
     mutationFn: ({ id, ...data }: { id: number } & UpdateActionInput) => updateAction(state.user!.login, id, data),
-    onSuccess: (updatedAction: Action) => {
-      queryClient.setQueryData(["actions", updatedAction.id], updatedAction);
-      queryClient.setQueryData<FetchActionsResult>(["actions", "open"], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          actions: old.actions.map((a) => (a.id === updatedAction.id ? updatedAction : a)),
-        };
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["actions"] });
     },
   });
 }

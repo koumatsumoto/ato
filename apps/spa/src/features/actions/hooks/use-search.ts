@@ -13,6 +13,5 @@ export function useSearchActions(query: string, includeCompleted: boolean, label
     queryKey: ["actions", "search", debouncedQuery, includeCompleted, label ?? ""],
     queryFn: () => searchActions(state.user!.login, { query: debouncedQuery, includeCompleted, ...(label ? { label } : {}) }),
     enabled: !!state.user && (debouncedQuery.length > 0 || !!label),
-    staleTime: 30_000,
   });
 }

@@ -54,7 +54,7 @@ function mockFetchResponses(...responses: Array<{ body: unknown; status?: number
       }),
     );
   }
-  // Default: keep returning empty arrays for invalidation queries
+  // Default: keep returning empty arrays for invalidation refetches
   fn.mockResolvedValue(new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } }));
   return fn;
 }
@@ -106,12 +106,13 @@ describe("use-actions hooks", () => {
   });
 
   describe("useCreateAction", () => {
-    it("creates an action with optimistic update and replaces temp ID with real ID", async () => {
+    it("creates an action with optimistic update then refetches from server", async () => {
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 1, title: "Existing" })];
       const created = makeIssue({ number: 10, title: "New action" });
+      const refreshedIssues = [makeIssue({ number: 10, title: "New action" }), makeIssue({ number: 1, title: "Existing" })];
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: created, status: 201 });
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: created, status: 201 }, { body: refreshedIssues });
 
       const wrapper = createWrapper();
       const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
@@ -132,19 +133,25 @@ describe("use-actions hooks", () => {
         expect(createResult.current.isSuccess).toBe(true);
       });
 
-      // After mutation success: both items exist with real positive IDs (no refetch needed)
-      const actions = actionsResult.current.data?.actions ?? [];
-      expect(actions).toHaveLength(2);
-      expect(actions.every((t) => t.id > 0)).toBe(true);
-      expect(actions.find((t) => t.id === 10)).toBeDefined();
-      expect(actions.find((t) => t.id === 1)).toBeDefined();
+      // After server refetch, both items exist with real positive IDs
+      await waitFor(() => {
+        const actions = actionsResult.current.data?.actions ?? [];
+        expect(actions).toHaveLength(2);
+        expect(actions.every((t) => t.id > 0)).toBe(true);
+      });
     });
 
     it("rolls back optimistic update on mutation error", async () => {
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 1, title: "Existing" })];
+      const refreshedIssues = [makeIssue({ number: 1, title: "Existing" })];
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: { message: "Server error" }, status: 500 });
+      globalThis.fetch = mockFetchResponses(
+        { body: userResponse },
+        { body: issues },
+        { body: { message: "Server error" }, status: 500 },
+        { body: refreshedIssues },
+      );
 
       const wrapper = createWrapper();
       const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
@@ -159,11 +166,11 @@ describe("use-actions hooks", () => {
         createResult.current.mutate({ title: "Will fail" });
       });
 
-      // After error, rolled back to original single item
       await waitFor(() => {
         expect(createResult.current.isError).toBe(true);
       });
 
+      // After error rollback + server refetch, only original item exists
       await waitFor(() => {
         const actions = actionsResult.current.data?.actions ?? [];
         expect(actions).toHaveLength(1);
@@ -173,12 +180,13 @@ describe("use-actions hooks", () => {
   });
 
   describe("useCloseAction", () => {
-    it("closes an action with optimistic removal", async () => {
+    it("closes an action with optimistic removal then refetches", async () => {
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 1 }), makeIssue({ number: 2 })];
       const closed = makeIssue({ number: 1, state: "closed", closed_at: "2026-01-02T00:00:00Z" });
+      const refreshedIssues = [makeIssue({ number: 2 })];
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: closed });
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: closed }, { body: refreshedIssues });
 
       const wrapper = createWrapper();
       const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
@@ -204,15 +212,21 @@ describe("use-actions hooks", () => {
         expect(closeResult.current.isSuccess).toBe(true);
       });
 
-      // Item remains removed from open list after mutation completes
+      // After server refetch, item remains removed
       expect(actionsResult.current.data?.actions).toHaveLength(1);
     });
 
     it("rolls back optimistic removal on close error", async () => {
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 1 }), makeIssue({ number: 2 })];
+      const refreshedIssues = [makeIssue({ number: 1 }), makeIssue({ number: 2 })];
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: { message: "Server error" }, status: 500 });
+      globalThis.fetch = mockFetchResponses(
+        { body: userResponse },
+        { body: issues },
+        { body: { message: "Server error" }, status: 500 },
+        { body: refreshedIssues },
+      );
 
       const wrapper = createWrapper();
       const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
@@ -231,7 +245,7 @@ describe("use-actions hooks", () => {
         expect(closeResult.current.isError).toBe(true);
       });
 
-      // Rolled back: both items restored
+      // Rolled back + server refetch: both items restored
       await waitFor(() => {
         expect(actionsResult.current.data?.actions).toHaveLength(2);
       });
@@ -246,7 +260,6 @@ describe("use-actions hooks", () => {
       globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: reopened });
 
       const wrapper = createWrapper();
-      // Wait for auth to load by rendering useAuth
       const { result: authResult } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
@@ -290,12 +303,13 @@ describe("use-actions hooks", () => {
       });
     });
 
-    it("updates the open actions list cache directly on success", async () => {
+    it("invalidates action caches and refetches on successful update", async () => {
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 5, title: "Original" })];
       const updated = makeIssue({ number: 5, title: "Updated" });
+      const refreshedIssues = [makeIssue({ number: 5, title: "Updated" })];
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: updated });
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: updated }, { body: refreshedIssues });
 
       const wrapper = createWrapper();
       const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
@@ -314,9 +328,11 @@ describe("use-actions hooks", () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      // Open list cache should be updated directly without refetch
-      const actions = actionsResult.current.data?.actions ?? [];
-      expect(actions.find((a) => a.id === 5)?.title).toBe("Updated");
+      // After server refetch, title should be updated
+      await waitFor(() => {
+        const actions = actionsResult.current.data?.actions ?? [];
+        expect(actions.find((a) => a.id === 5)?.title).toBe("Updated");
+      });
     });
   });
 });

@@ -62,13 +62,13 @@ describe("githubFetch", () => {
     });
   });
 
-  it("throws AuthError and clears token on 401 response", async () => {
+  it("throws AuthError on 401 response without clearing token", async () => {
     localStorage.setItem("ato:token", "expired-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
 
     const githubFetch = await loadGithubFetch();
     await expect(githubFetch("/user")).rejects.toThrow(AuthError);
-    expect(localStorage.getItem("ato:token")).toBeNull();
+    expect(localStorage.getItem("ato:token")).toBe("expired-token");
   });
 
   it("throws NetworkError when fetch rejects", async () => {
