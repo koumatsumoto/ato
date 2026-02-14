@@ -16,6 +16,7 @@ vi.mock("@/features/auth/hooks/use-auth", () => ({
 describe("AuthGuard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     mockState = { token: null, user: null, isLoading: false };
   });
 
@@ -68,5 +69,40 @@ describe("AuthGuard", () => {
 
     expect(screen.getByText("Protected Content")).toBeInTheDocument();
     expect(screen.getByText("ATO")).toBeInTheDocument();
+  });
+
+  it("saves redirect path to sessionStorage when redirecting to login", () => {
+    mockState = { token: null, user: null, isLoading: false };
+
+    render(
+      <MemoryRouter initialEntries={["/share?url=https://example.com&title=Test"]}>
+        <Routes>
+          <Route element={<AuthGuard />}>
+            <Route path="/share" element={<div>Share Page</div>} />
+          </Route>
+          <Route path="/login" element={<div>Login Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Login Page")).toBeInTheDocument();
+    expect(sessionStorage.getItem("ato:redirect-after-login")).toBe("/share?url=https://example.com&title=Test");
+  });
+
+  it("does not save redirect path for root path", () => {
+    mockState = { token: null, user: null, isLoading: false };
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<AuthGuard />}>
+            <Route index element={<div>Protected</div>} />
+          </Route>
+          <Route path="/login" element={<div>Login Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(sessionStorage.getItem("ato:redirect-after-login")).toBeNull();
   });
 });

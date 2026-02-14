@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
-import { useAction, useCloseAction, useReopenAction, useUpdateAction } from "@/features/actions/hooks/use-actions";
+import { useAction, useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
 import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
 import { useRelativeTime } from "@/shared/hooks/use-relative-time";
 import { addRecentLabels } from "@/features/actions/lib/label-store";
@@ -15,9 +15,6 @@ export function DetailPage() {
   const { data: action, isLoading, error, refetch } = useAction(Number(id));
   const closeAction = useCloseAction();
   const reopenAction = useReopenAction();
-  const updateAction = useUpdateAction();
-  const updateMutateRef = useRef(updateAction.mutate);
-  updateMutateRef.current = updateAction.mutate;
 
   const [title, setTitle] = useState("");
   const [memo, setMemo] = useState("");
@@ -25,10 +22,6 @@ export function DetailPage() {
   const [isTitleEditing, setIsTitleEditing] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const titleRef = useRef(title);
-  titleRef.current = title;
-  const memoRef = useRef(memo);
-  memoRef.current = memo;
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -38,7 +31,7 @@ export function DetailPage() {
       if (draft && new Date(draft.savedAt).getTime() > new Date(action.updatedAt).getTime()) {
         setTitle(draft.title);
         setMemo(draft.memo);
-        setLabels(action.labels);
+        setLabels(draft.labels ?? action.labels);
         setRestoredFromDraft(true);
       } else {
         setTitle(action.title);
@@ -57,12 +50,14 @@ export function DetailPage() {
     return () => clearTimeout(timer);
   }, [restoredFromDraft]);
 
-  const { lastSavedAt, isSaving, saveNow } = useAutoSave({
+  const { lastSavedAt, isSaving, saveNow, saveLabels } = useAutoSave({
     id: Number(id),
     title,
     memo,
+    labels,
     originalTitle: action?.title ?? "",
     originalMemo: action?.memo ?? "",
+    originalLabels: action?.labels ?? [],
     updatedAt: action?.updatedAt ?? "",
   });
 
@@ -101,9 +96,9 @@ export function DetailPage() {
     (newLabels: readonly string[]) => {
       setLabels(newLabels);
       addRecentLabels(newLabels);
-      updateMutateRef.current({ id: Number(id), title: titleRef.current, memo: memoRef.current, labels: [...newLabels] });
+      saveLabels(newLabels);
     },
-    [id],
+    [saveLabels],
   );
 
   const handleToggle = useCallback(() => {

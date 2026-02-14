@@ -5,6 +5,7 @@ const DRAFT_KEY_PREFIX = "ato:draft:";
 const draftSchema = z.object({
   title: z.string(),
   memo: z.string(),
+  labels: z.array(z.string()).optional(),
   savedAt: z.string(),
   serverUpdatedAt: z.string(),
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Routes, Route } from "react-router";
 import { LoginPage } from "@/app/pages/LoginPage";
 
 const mockLogin = vi.fn();
@@ -18,6 +18,7 @@ vi.mock("@/features/auth/hooks/use-auth", () => ({
 describe("LoginPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     mockAuthState = { token: null, user: null, isLoading: false };
   });
 
@@ -96,5 +97,38 @@ describe("LoginPage", () => {
     );
 
     expect(screen.queryByRole("button", { name: "GitHub でログイン" })).not.toBeInTheDocument();
+  });
+
+  it("redirects to saved path from sessionStorage when already authenticated", () => {
+    sessionStorage.setItem("ato:redirect-after-login", "/share?url=https://example.com");
+    mockAuthState = { token: "token", user: null, isLoading: false };
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/share" element={<div>Share Page</div>} />
+          <Route path="/" element={<div>Home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Share Page")).toBeInTheDocument();
+    expect(sessionStorage.getItem("ato:redirect-after-login")).toBeNull();
+  });
+
+  it("redirects to / when no saved path exists and already authenticated", () => {
+    mockAuthState = { token: "token", user: null, isLoading: false };
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<div>Home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Home")).toBeInTheDocument();
   });
 });

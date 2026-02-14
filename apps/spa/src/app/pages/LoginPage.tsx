@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { consumeRedirectPath } from "@/features/auth/components/AuthGuard";
 
 export function LoginPage() {
   const { state, login } = useAuth();
@@ -8,7 +9,8 @@ export function LoginPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   if (state.token) {
-    return <Navigate to="/" replace />;
+    const redirectPath = consumeRedirectPath();
+    return <Navigate to={redirectPath ?? "/"} replace />;
   }
 
   const handleLogin = async () => {

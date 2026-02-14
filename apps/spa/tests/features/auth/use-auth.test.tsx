@@ -107,6 +107,36 @@ describe("useAuth", () => {
     expect(result.current.state.user?.login).toBe("testuser");
   });
 
+  it("does not clear token on 500 server error", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("ato:token", "valid-token");
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "Internal Server Error" }), { status: 500 }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(result.current.state.token).toBe("valid-token");
+    expect(localStorage.getItem("ato:token")).toBe("valid-token");
+  });
+
+  it("does not clear token on 503 service unavailable", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("ato:token", "valid-token");
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "Service Unavailable" }), { status: 503 }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(result.current.state.token).toBe("valid-token");
+    expect(localStorage.getItem("ato:token")).toBe("valid-token");
+  });
+
   it("logout clears all auth state", async () => {
     localStorage.setItem("ato:token", "valid-token");
     localStorage.setItem("ato:user", '{"login":"user"}');

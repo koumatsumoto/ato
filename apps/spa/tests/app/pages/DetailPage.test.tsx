@@ -10,7 +10,8 @@ let mockActionReturn: { data: Action | undefined; isLoading: boolean; error: Err
 const mockCloseMutate = vi.fn();
 const mockReopenMutate = vi.fn();
 const mockSaveNow = vi.fn();
-let mockAutoSaveReturn = { lastSavedAt: null as Date | null, isSaving: false, isDirty: false, saveNow: mockSaveNow };
+const mockSaveLabels = vi.fn();
+let mockAutoSaveReturn = { lastSavedAt: null as Date | null, isSaving: false, isDirty: false, saveNow: mockSaveNow, saveLabels: mockSaveLabels };
 let mockRelativeTimeReturn: string | null = null;
 
 vi.mock("react-router", async () => {
@@ -65,7 +66,7 @@ describe("DetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockActionReturn = { data: undefined, isLoading: false, error: null, refetch: vi.fn() };
-    mockAutoSaveReturn = { lastSavedAt: null, isSaving: false, isDirty: false, saveNow: mockSaveNow };
+    mockAutoSaveReturn = { lastSavedAt: null, isSaving: false, isDirty: false, saveNow: mockSaveNow, saveLabels: mockSaveLabels };
     mockRelativeTimeReturn = null;
   });
 
@@ -133,7 +134,7 @@ describe("DetailPage", () => {
   describe("save status display", () => {
     it("shows last updated time with correct label", () => {
       mockActionReturn = { data: makeAction(), isLoading: false, error: null, refetch: vi.fn() };
-      mockAutoSaveReturn = { lastSavedAt: new Date(), isSaving: false, isDirty: false, saveNow: mockSaveNow };
+      mockAutoSaveReturn = { lastSavedAt: new Date(), isSaving: false, isDirty: false, saveNow: mockSaveNow, saveLabels: mockSaveLabels };
       mockRelativeTimeReturn = "5秒前";
 
       render(
@@ -147,7 +148,7 @@ describe("DetailPage", () => {
 
     it("shows saving indicator while saving", () => {
       mockActionReturn = { data: makeAction(), isLoading: false, error: null, refetch: vi.fn() };
-      mockAutoSaveReturn = { lastSavedAt: null, isSaving: true, isDirty: true, saveNow: mockSaveNow };
+      mockAutoSaveReturn = { lastSavedAt: null, isSaving: true, isDirty: true, saveNow: mockSaveNow, saveLabels: mockSaveLabels };
 
       render(
         <MemoryRouter>

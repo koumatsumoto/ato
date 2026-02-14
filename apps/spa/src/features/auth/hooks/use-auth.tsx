@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthContextValue, AuthState, AuthUser } from "@/features/auth/types";
-import { AuthError, NetworkError, RateLimitError } from "@/shared/lib/errors";
+import { AuthError, GitHubApiError, NetworkError, RateLimitError } from "@/shared/lib/errors";
 import { getToken, setToken, clearToken } from "@/features/auth/lib/token-store";
 import { openLoginPopup } from "@/features/auth/lib/auth-client";
 import { githubFetch } from "@/shared/lib/github-client";
@@ -30,7 +30,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryKey: ["auth", "me"],
     queryFn: async (): Promise<AuthUser> => {
       const response = await githubFetch("/user");
-      if (!response.ok) throw new AuthError("Failed to fetch user");
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new GitHubApiError(response.status, body);
+      }
       const data = await response.json();
       return {
         login: data.login,
@@ -43,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (err instanceof AuthError) return failureCount < 2;
       if (err instanceof NetworkError) return failureCount < 3;
       if (err instanceof RateLimitError) return failureCount < 2;
+      if (err instanceof GitHubApiError && err.status >= 500) return failureCount < 3;
       return false;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),

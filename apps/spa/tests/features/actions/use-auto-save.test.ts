@@ -26,8 +26,10 @@ function defaultParams(overrides: Record<string, unknown> = {}) {
     id: 1,
     title: "Test title",
     memo: "Test memo",
+    labels: [] as readonly string[],
     originalTitle: "Test title",
     originalMemo: "Test memo",
+    originalLabels: [] as readonly string[],
     updatedAt: "2026-01-15T10:00:00Z",
     ...overrides,
   };
@@ -112,7 +114,7 @@ describe("useAutoSave", () => {
 
       expect(mockMutate).toHaveBeenCalledTimes(1);
       expect(mockMutate).toHaveBeenCalledWith(
-        { id: 1, title: "Updated title", memo: "Test memo" },
+        { id: 1, title: "Updated title", memo: "Test memo", labels: [] },
         expect.objectContaining({ onSuccess: expect.any(Function) }),
       );
     });
@@ -156,7 +158,7 @@ describe("useAutoSave", () => {
 
       expect(mockMutate).toHaveBeenCalledTimes(1);
       expect(mockMutate).toHaveBeenCalledWith(
-        { id: 1, title: "Test title", memo: "Changed memo" },
+        { id: 1, title: "Test title", memo: "Changed memo", labels: [] },
         expect.objectContaining({ onSuccess: expect.any(Function) }),
       );
     });
@@ -254,6 +256,7 @@ describe("useAutoSave", () => {
       expect(mockSaveDraft).toHaveBeenCalledWith(1, {
         title: "Offline edit",
         memo: "Test memo",
+        labels: [],
         savedAt: expect.any(String),
         serverUpdatedAt: "2026-01-15T10:00:00Z",
       });
@@ -280,6 +283,129 @@ describe("useAutoSave", () => {
     });
   });
 
+  describe("labels", () => {
+    it("returns isDirty true when labels differ from originalLabels", () => {
+      const { result } = renderHook(() => useAutoSave(defaultParams({ labels: ["bug"], originalLabels: [] as readonly string[] })));
+
+      expect(result.current.isDirty).toBe(true);
+    });
+
+    it("returns isDirty false when labels match originalLabels", () => {
+      const { result } = renderHook(() =>
+        useAutoSave(defaultParams({ labels: ["bug"] as readonly string[], originalLabels: ["bug"] as readonly string[] })),
+      );
+
+      expect(result.current.isDirty).toBe(false);
+    });
+
+    it("saveLabels triggers immediate save with new labels", () => {
+      const { result } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      act(() => {
+        result.current.saveLabels(["feature"]);
+      });
+
+      expect(mockMutate).toHaveBeenCalledTimes(1);
+      expect(mockMutate).toHaveBeenCalledWith(
+        { id: 1, title: "Test title", memo: "Test memo", labels: ["feature"] },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
+    });
+
+    it("saveLabels does not save when labels match lastSaved", () => {
+      const { result } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams({ labels: ["bug"] as readonly string[], originalLabels: ["bug"] as readonly string[] }),
+      });
+
+      act(() => {
+        result.current.saveLabels(["bug"]);
+      });
+
+      expect(mockMutate).not.toHaveBeenCalled();
+    });
+
+    it("saveLabels uses current title and memo values", () => {
+      const { result, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      rerender(defaultParams({ title: "Updated title", memo: "Updated memo" }));
+
+      act(() => {
+        result.current.saveLabels(["urgent"]);
+      });
+
+      expect(mockMutate).toHaveBeenCalledWith(
+        { id: 1, title: "Updated title", memo: "Updated memo", labels: ["urgent"] },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
+    });
+
+    it("includes current labels in debounced title/memo save", () => {
+      const { rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams({ labels: ["existing"] as readonly string[], originalLabels: [] as readonly string[] }),
+      });
+
+      rerender(
+        defaultParams({
+          title: "Changed title",
+          labels: ["existing"] as readonly string[],
+          originalLabels: [] as readonly string[],
+        }),
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+
+      expect(mockMutate).toHaveBeenCalledWith(
+        { id: 1, title: "Changed title", memo: "Test memo", labels: ["existing"] },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
+    });
+
+    it("triggers unmount save when only labels are dirty", () => {
+      const { unmount, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      rerender(defaultParams({ labels: ["new-label"] as readonly string[] }));
+      mockMutate.mockClear();
+
+      unmount();
+
+      expect(mockMutate).toHaveBeenCalledWith({
+        id: 1,
+        title: "Test title",
+        memo: "Test memo",
+        labels: ["new-label"],
+      });
+    });
+
+    it("updates lastSavedAt after successful label save", () => {
+      const beforeSave = Date.now();
+
+      const { result } = renderHook((props) => useAutoSave(props), {
+        initialProps: defaultParams(),
+      });
+
+      act(() => {
+        result.current.saveLabels(["saved-label"]);
+      });
+
+      const onSuccess = mockMutate.mock.calls[0]![1].onSuccess;
+
+      act(() => {
+        onSuccess();
+      });
+
+      expect(result.current.lastSavedAt).not.toBeNull();
+      expect(result.current.lastSavedAt!.getTime()).toBeGreaterThanOrEqual(beforeSave);
+    });
+  });
+
   describe("unmount save", () => {
     it("triggers mutation and saves draft on unmount when dirty", () => {
       const { unmount, rerender } = renderHook((props) => useAutoSave(props), {
@@ -291,10 +417,11 @@ describe("useAutoSave", () => {
 
       unmount();
 
-      expect(mockMutate).toHaveBeenCalledWith({ id: 1, title: "Unsaved title", memo: "Test memo" });
+      expect(mockMutate).toHaveBeenCalledWith({ id: 1, title: "Unsaved title", memo: "Test memo", labels: [] });
       expect(mockSaveDraft).toHaveBeenCalledWith(1, {
         title: "Unsaved title",
         memo: "Test memo",
+        labels: [],
         savedAt: expect.any(String),
         serverUpdatedAt: "2026-01-15T10:00:00Z",
       });

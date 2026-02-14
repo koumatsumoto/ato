@@ -1,11 +1,25 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Layout } from "@/shared/components/layout/Layout";
+
+const REDIRECT_KEY = "ato:redirect-after-login";
+
+export function saveRedirectPath(path: string): void {
+  if (path && path !== "/") {
+    sessionStorage.setItem(REDIRECT_KEY, path);
+  }
+}
+
+export function consumeRedirectPath(): string | null {
+  const path = sessionStorage.getItem(REDIRECT_KEY);
+  if (path) sessionStorage.removeItem(REDIRECT_KEY);
+  return path;
+}
 
 function PageSkeleton() {
   return (
     <div className="bg-gray-50" style={{ minHeight: "var(--app-height)" }}>
-      <div className="border-b bg-white px-4 py-3">
+      <div className="bg-white px-4 py-3 shadow">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
           <div className="h-6 w-12 animate-pulse rounded bg-gray-200" />
           <div className="h-7 w-7 animate-pulse rounded-full bg-gray-200" />
@@ -24,9 +38,14 @@ function PageSkeleton() {
 
 export function AuthGuard() {
   const { state } = useAuth();
+  const location = useLocation();
 
   if (state.isLoading) return <PageSkeleton />;
-  if (!state.token) return <Navigate to="/login" replace />;
+
+  if (!state.token) {
+    saveRedirectPath(`${location.pathname}${location.search}`);
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <Layout>
