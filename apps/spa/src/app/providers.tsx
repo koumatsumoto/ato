@@ -1,8 +1,20 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/features/auth/hooks/use-auth";
 import { AuthError, GitHubApiError } from "@/shared/lib/errors";
+import { clearToken } from "@/features/auth/lib/token-store";
+import { authLog } from "@/shared/lib/auth-log";
+
+const queryCache = new QueryCache({
+  onError: (error, query) => {
+    if (error instanceof AuthError) {
+      authLog("global:auth-error", `query=${String(query.queryKey)} msg=${error.message}`);
+      clearToken();
+    }
+  },
+});
 
 const queryClient = new QueryClient({
+  queryCache,
   defaultOptions: {
     queries: {
       retry: (failureCount, error) => {

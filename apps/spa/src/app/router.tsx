@@ -4,6 +4,7 @@ import { LoginPage } from "@/app/pages/LoginPage";
 import { MainPage } from "@/app/pages/MainPage";
 import { DetailPage } from "@/app/pages/DetailPage";
 import { SharePage } from "@/app/pages/SharePage";
+import { DiagnosticsPage } from "@/app/pages/DiagnosticsPage";
 
 export const router = createBrowserRouter(
   [
@@ -13,6 +14,7 @@ export const router = createBrowserRouter(
         { path: "/", element: <MainPage /> },
         { path: "/actions/:id", element: <DetailPage /> },
         { path: "/share", element: <SharePage /> },
+        { path: "/diagnostics", element: <DiagnosticsPage /> },
       ],
     },
     { path: "/login", element: <LoginPage /> },

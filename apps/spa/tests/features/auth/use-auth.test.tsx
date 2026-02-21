@@ -1,11 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "@/features/auth/hooks/use-auth";
+import { AuthError } from "@/shared/lib/errors";
+import { clearToken } from "@/features/auth/lib/token-store";
 
 function createWrapper() {
+  const queryCache = new QueryCache({
+    onError: (error) => {
+      if (error instanceof AuthError) {
+        clearToken();
+      }
+    },
+  });
+
   const queryClient = new QueryClient({
+    queryCache,
     defaultOptions: {
       queries: { retry: false },
     },
@@ -160,5 +171,25 @@ describe("useAuth", () => {
     expect(localStorage.getItem("ato:token")).toBeNull();
     expect(localStorage.getItem("ato:user")).toBeNull();
     expect(localStorage.getItem("ato:repo-initialized")).toBeNull();
+  });
+
+  it("clears state when TOKEN_CLEARED_EVENT is dispatched externally", async () => {
+    localStorage.setItem("ato:token", "valid-token");
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ login: "user", id: 1, avatar_url: "https://example.com/avatar" }), { status: 200 }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.state.user).not.toBeNull();
+    });
+
+    act(() => {
+      clearToken();
+    });
+
+    expect(result.current.state.token).toBeNull();
+    expect(localStorage.getItem("ato:token")).toBeNull();
   });
 });

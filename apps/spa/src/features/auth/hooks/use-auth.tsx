@@ -2,10 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthContextValue, AuthState, AuthUser } from "@/features/auth/types";
 import { AuthError, GitHubApiError, NetworkError, RateLimitError } from "@/shared/lib/errors";
-import { getToken, setToken, clearToken } from "@/features/auth/lib/token-store";
+import { getToken, setToken, clearToken, TOKEN_CLEARED_EVENT } from "@/features/auth/lib/token-store";
 import { openLoginPopup } from "@/features/auth/lib/auth-client";
 import { githubFetch } from "@/shared/lib/github-client";
 import { getOAuthProxyUrl } from "@/shared/lib/env";
+import { authLog } from "@/shared/lib/auth-log";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -22,19 +23,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => getToken());
   const queryClient = useQueryClient();
 
-  const {
-    data: user,
-    isLoading,
-    error,
-  } = useQuery({
+  const { data: user, isLoading } = useQuery({
     queryKey: ["auth", "me"],
     queryFn: async (): Promise<AuthUser> => {
+      authLog("auth-query:start");
       const response = await githubFetch("/user");
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
+        authLog("auth-query:api-error", `status=${response.status}`);
         throw new GitHubApiError(response.status, body);
       }
       const data = await response.json();
+      authLog("auth-query:success", data.login);
       return {
         login: data.login,
         id: data.id,
@@ -50,15 +50,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (error instanceof AuthError && token !== null) {
-      clearToken();
+    const onTokenCleared = () => {
+      authLog("token-cleared:event");
       setTokenState(null);
-    }
-  }, [error, token]);
+      queryClient.clear();
+    };
+    window.addEventListener(TOKEN_CLEARED_EVENT, onTokenCleared);
+    return () => window.removeEventListener(TOKEN_CLEARED_EVENT, onTokenCleared);
+  }, [queryClient]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      const visible = document.visibilityState === "visible";
+      const hasToken = localStorage.getItem("ato:token") !== null;
+      authLog("visibility", `visible=${visible} localStorage=${hasToken} state=${token !== null}`);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [token]);
 
   const login = useCallback(async () => {
     const proxyUrl = getOAuthProxyUrl();
@@ -70,9 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     clearToken();
-    setTokenState(null);
-    queryClient.clear();
-  }, [queryClient]);
+  }, []);
 
   const state: AuthState = useMemo(
     () => ({
