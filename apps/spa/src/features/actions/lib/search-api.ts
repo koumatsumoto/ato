@@ -2,8 +2,7 @@ import type { Action, GitHubSearchResult } from "@/features/actions/types";
 import { GitHubApiError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
 import { mapIssueToAction } from "./issue-mapper";
-
-const REPO_NAME = "ato-datastore";
+import { REPO_NAME } from "./repo-constants";
 
 export async function searchActions(
   login: string,

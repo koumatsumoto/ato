@@ -1,7 +1,6 @@
 import { GitHubApiError, RepoNotConfiguredError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
-
-const REPO_INITIALIZED_KEY = "ato:repo-initialized";
+import { REPO_INITIALIZED_KEY } from "./repo-constants";
 
 export async function ensureRepository(login: string): Promise<void> {
   if (localStorage.getItem(REPO_INITIALIZED_KEY) === "true") {

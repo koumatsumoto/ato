@@ -3,12 +3,7 @@ import { GitHubApiError, NotFoundError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
 import { mapIssueToAction } from "./issue-mapper";
 import { parseLinkHeader } from "./pagination";
-
-const REPO_NAME = "ato-datastore";
-
-function repoPath(login: string): string {
-  return `/repos/${login}/${REPO_NAME}`;
-}
+import { repoPath } from "./repo-constants";
 
 export interface FetchActionsResult {
   readonly actions: readonly Action[];

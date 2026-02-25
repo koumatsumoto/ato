@@ -1,35 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { AuthProvider, useAuth } from "@/features/auth/hooks/use-auth";
-import { AuthError } from "@/shared/lib/errors";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { clearToken } from "@/features/auth/lib/token-store";
-
-function createWrapper() {
-  const queryCache = new QueryCache({
-    onError: (error) => {
-      if (error instanceof AuthError) {
-        clearToken();
-      }
-    },
-  });
-
-  const queryClient = new QueryClient({
-    queryCache,
-    defaultOptions: {
-      queries: { retry: false },
-    },
-  });
-
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
-      </QueryClientProvider>
-    );
-  };
-}
+import { createWrapper } from "../../test-utils";
 
 describe("useAuth", () => {
   const originalFetch = globalThis.fetch;

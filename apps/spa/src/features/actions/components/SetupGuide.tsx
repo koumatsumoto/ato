@@ -1,4 +1,5 @@
-const REPO_INITIALIZED_KEY = "ato:repo-initialized";
+import { REPO_INITIALIZED_KEY } from "@/features/actions/lib/repo-constants";
+
 const CREATE_REPO_URL = "https://github.com/new?name=ato-datastore&visibility=private&auto_init=true";
 const INSTALL_APP_URL = "https://github.com/apps/ato-app/installations/new";
 

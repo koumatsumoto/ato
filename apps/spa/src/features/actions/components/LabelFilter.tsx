@@ -3,6 +3,7 @@ import { useLabels } from "@/features/actions/hooks/use-labels";
 import { getRecentLabels } from "@/features/actions/lib/label-store";
 import { buildLabelSuggestions } from "@/features/actions/lib/label-suggestions";
 import { useClickOutside } from "@/shared/hooks/use-click-outside";
+import { useComboboxNav } from "@/shared/hooks/use-combobox-nav";
 import { LabelBadge } from "./LabelBadge";
 
 interface LabelFilterProps {
@@ -12,8 +13,6 @@ interface LabelFilterProps {
 
 export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
   const [inputValue, setInputValue] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -22,16 +21,10 @@ export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
 
   const suggestions = buildLabelSuggestions(inputValue, repoLabels ?? [], recentLabels, selectedLabel ? [selectedLabel] : []);
 
-  useClickOutside(containerRef, () => {
-    setIsOpen(false);
-    setHighlightedIndex(-1);
-  });
-
   const selectLabel = (name: string) => {
     onChange(name);
     setInputValue("");
-    setIsOpen(false);
-    setHighlightedIndex(-1);
+    nav.close();
   };
 
   const clearLabel = () => {
@@ -40,31 +33,22 @@ export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
     inputRef.current?.focus();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setIsOpen(true);
-      setHighlightedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
-        selectLabel(suggestions[highlightedIndex]!);
-      }
-    } else if (e.key === "Escape") {
-      setIsOpen(false);
-      setHighlightedIndex(-1);
-    } else if (e.key === "Backspace" && inputValue === "" && selectedLabel) {
-      clearLabel();
-    }
-  };
+  const nav = useComboboxNav({
+    itemCount: suggestions.length,
+    inputIsEmpty: inputValue === "",
+    onSelect: (index) => {
+      selectLabel(suggestions[index]!);
+    },
+    onBackspace: () => {
+      if (selectedLabel) clearLabel();
+    },
+  });
+
+  useClickOutside(containerRef, nav.close);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
-    setIsOpen(true);
-    setHighlightedIndex(-1);
+    nav.onInputChange();
   };
 
   if (selectedLabel) {
@@ -91,33 +75,33 @@ export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
           type="text"
           value={inputValue}
           onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsOpen(true)}
+          onKeyDown={nav.handleKeyDown}
+          onFocus={nav.open}
           placeholder="ラベルで絞り込み..."
           className="w-full border-none bg-transparent py-0.5 text-sm outline-none placeholder:text-gray-400"
           maxLength={50}
           role="combobox"
-          aria-expanded={isOpen && suggestions.length > 0}
+          aria-expanded={nav.isOpen && suggestions.length > 0}
           aria-controls="label-filter-listbox"
-          aria-activedescendant={highlightedIndex >= 0 ? `label-filter-option-${highlightedIndex}` : undefined}
+          aria-activedescendant={nav.highlightedIndex >= 0 ? `label-filter-option-${nav.highlightedIndex}` : undefined}
           aria-autocomplete="list"
         />
       </div>
 
-      {isOpen && suggestions.length > 0 && (
+      {nav.isOpen && suggestions.length > 0 && (
         <ul
           id="label-filter-listbox"
           role="listbox"
           className="absolute left-0 right-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
           {suggestions.map((name, index) => (
-            <li key={name} id={`label-filter-option-${index}`} role="option" aria-selected={index === highlightedIndex}>
+            <li key={name} id={`label-filter-option-${index}`} role="option" aria-selected={index === nav.highlightedIndex}>
               <button
                 type="button"
                 onClick={() => selectLabel(name)}
                 tabIndex={-1}
                 className={`w-full px-3 py-2 text-left text-sm ${
-                  index === highlightedIndex ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
+                  index === nav.highlightedIndex ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 {name}

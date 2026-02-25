@@ -1,12 +1,7 @@
 import type { GitHubLabel } from "@/features/actions/types";
 import { GitHubApiError } from "@/shared/lib/errors";
 import { githubFetch } from "@/shared/lib/github-client";
-
-const REPO_NAME = "ato-datastore";
-
-function repoPath(login: string): string {
-  return `/repos/${login}/${REPO_NAME}`;
-}
+import { repoPath } from "./repo-constants";
 
 export async function fetchLabels(login: string): Promise<readonly GitHubLabel[]> {
   const response = await githubFetch(`${repoPath(login)}/labels?per_page=100&sort=name`);

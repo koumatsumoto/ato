@@ -4,6 +4,13 @@ interface Env {
   SPA_ORIGIN: string;
 }
 
+interface GitHubTokenResponse {
+  readonly access_token?: string;
+  readonly refresh_token?: string;
+  readonly expires_in?: number;
+  readonly refresh_token_expires_in?: number;
+}
+
 function securityHeaders(): Record<string, string> {
   return {
     "X-Content-Type-Options": "nosniff",
@@ -19,6 +26,10 @@ function corsHeaders(origin: string): Record<string, string> {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "3600",
   };
+}
+
+function jsonResponseHeaders(origin: string): Record<string, string> {
+  return { ...corsHeaders(origin), ...securityHeaders() };
 }
 
 function parseCookies(cookie: string): Record<string, string> {
@@ -62,6 +73,19 @@ window.close();
   });
 }
 
+async function exchangeToken(env: Env, body: Record<string, string>): Promise<GitHubTokenResponse> {
+  const res = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      ...body,
+    }),
+  });
+  return res.json();
+}
+
 function handleLogin(url: URL, env: Env): Response {
   const state = crypto.randomUUID();
   const params = new URLSearchParams({
@@ -95,25 +119,7 @@ async function handleCallback(url: URL, request: Request, env: Env): Promise<Res
   }
 
   try {
-    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        client_id: env.GITHUB_CLIENT_ID,
-        client_secret: env.GITHUB_CLIENT_SECRET,
-        code,
-      }),
-    });
-
-    const tokenData: {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-      refresh_token_expires_in?: number;
-    } = await tokenRes.json();
+    const tokenData = await exchangeToken(env, { code });
     if (!tokenData.access_token) {
       return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
     }
@@ -148,34 +154,18 @@ async function handleRefresh(request: Request, env: Env): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "invalid_request" }, { status: 400, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
+    return Response.json({ error: "invalid_request" }, { status: 400, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
   }
 
   if (!body.refreshToken) {
-    return Response.json({ error: "missing_refresh_token" }, { status: 400, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
+    return Response.json({ error: "missing_refresh_token" }, { status: 400, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
   }
 
   try {
-    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-      method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: env.GITHUB_CLIENT_ID,
-        client_secret: env.GITHUB_CLIENT_SECRET,
-        grant_type: "refresh_token",
-        refresh_token: body.refreshToken,
-      }),
-    });
-
-    const tokenData: {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-      refresh_token_expires_in?: number;
-    } = await tokenRes.json();
+    const tokenData = await exchangeToken(env, { grant_type: "refresh_token", refresh_token: body.refreshToken });
 
     if (!tokenData.access_token) {
-      return Response.json({ error: "refresh_failed" }, { status: 401, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
+      return Response.json({ error: "refresh_failed" }, { status: 401, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
     }
 
     return Response.json(
@@ -185,10 +175,10 @@ async function handleRefresh(request: Request, env: Env): Promise<Response> {
         expiresIn: tokenData.expires_in,
         refreshTokenExpiresIn: tokenData.refresh_token_expires_in,
       },
-      { status: 200, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } },
+      { status: 200, headers: jsonResponseHeaders(env.SPA_ORIGIN) },
     );
   } catch {
-    return Response.json({ error: "refresh_failed" }, { status: 502, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
+    return Response.json({ error: "refresh_failed" }, { status: 502, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
   }
 }
 
@@ -199,7 +189,7 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
-        headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() },
+        headers: jsonResponseHeaders(env.SPA_ORIGIN),
       });
     }
 

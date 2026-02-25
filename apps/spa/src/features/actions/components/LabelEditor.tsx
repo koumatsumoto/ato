@@ -4,6 +4,7 @@ import { getRecentLabels, addRecentLabels } from "@/features/actions/lib/label-s
 import { buildLabelSuggestions } from "@/features/actions/lib/label-suggestions";
 import { labelSchema } from "@/features/actions/lib/validation";
 import { useClickOutside } from "@/shared/hooks/use-click-outside";
+import { useComboboxNav } from "@/shared/hooks/use-combobox-nav";
 import { LabelBadge } from "./LabelBadge";
 
 interface LabelEditorProps {
@@ -13,8 +14,6 @@ interface LabelEditorProps {
 
 export function LabelEditor({ labels, onChange }: LabelEditorProps) {
   const [inputValue, setInputValue] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -22,13 +21,7 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
   const recentLabels = getRecentLabels();
 
   const suggestions = buildLabelSuggestions(inputValue, repoLabels ?? [], recentLabels, labels);
-
   const showCreateOption = inputValue.trim().length > 0 && !suggestions.includes(inputValue.trim()) && !labels.includes(inputValue.trim());
-
-  useClickOutside(containerRef, () => {
-    setIsOpen(false);
-    setHighlightedIndex(-1);
-  });
 
   const addLabel = useCallback(
     (name: string) => {
@@ -38,11 +31,9 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
       const result = labelSchema.safeParse(trimmed);
       if (!result.success) return;
 
-      const newLabels = [...labels, trimmed];
-      onChange(newLabels);
+      onChange([...labels, trimmed]);
       addRecentLabels([trimmed]);
       setInputValue("");
-      setHighlightedIndex(-1);
       inputRef.current?.focus();
     },
     [labels, onChange],
@@ -55,41 +46,31 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
     [labels, onChange],
   );
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    const totalItems = suggestions.length + (showCreateOption ? 1 : 0);
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setIsOpen(true);
-      setHighlightedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
-        addLabel(suggestions[highlightedIndex]!);
-      } else if (highlightedIndex === suggestions.length && showCreateOption) {
-        addLabel(inputValue.trim());
-      } else if (inputValue.trim()) {
+  const nav = useComboboxNav({
+    itemCount: suggestions.length + (showCreateOption ? 1 : 0),
+    inputIsEmpty: inputValue === "",
+    onSelect: (index) => {
+      if (index < suggestions.length) {
+        addLabel(suggestions[index]!);
+      } else {
         addLabel(inputValue.trim());
       }
-    } else if (e.key === "Escape") {
-      setIsOpen(false);
-      setHighlightedIndex(-1);
-    } else if (e.key === "Backspace" && inputValue === "" && labels.length > 0) {
-      removeLabel(labels[labels.length - 1]!);
-    }
-  };
+    },
+    onInputSubmit: () => {
+      if (inputValue.trim()) {
+        addLabel(inputValue.trim());
+      }
+    },
+    onBackspace: () => {
+      if (labels.length > 0) removeLabel(labels[labels.length - 1]!);
+    },
+  });
+
+  useClickOutside(containerRef, nav.close);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
-    setIsOpen(true);
-    setHighlightedIndex(-1);
-  };
-
-  const handleFocus = () => {
-    setIsOpen(true);
+    nav.onInputChange();
   };
 
   return (
@@ -103,33 +84,33 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
           type="text"
           value={inputValue}
           onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onFocus={handleFocus}
+          onKeyDown={nav.handleKeyDown}
+          onFocus={nav.open}
           placeholder={labels.length === 0 ? "ラベルを追加..." : ""}
           className="min-w-[80px] flex-1 border-none bg-transparent py-0.5 text-sm outline-none placeholder:text-gray-400"
           maxLength={50}
           role="combobox"
-          aria-expanded={isOpen && (suggestions.length > 0 || showCreateOption)}
+          aria-expanded={nav.isOpen && (suggestions.length > 0 || showCreateOption)}
           aria-controls="label-editor-listbox"
-          aria-activedescendant={highlightedIndex >= 0 ? `label-editor-option-${highlightedIndex}` : undefined}
+          aria-activedescendant={nav.highlightedIndex >= 0 ? `label-editor-option-${nav.highlightedIndex}` : undefined}
           aria-autocomplete="list"
         />
       </div>
 
-      {isOpen && (suggestions.length > 0 || showCreateOption) && (
+      {nav.isOpen && (suggestions.length > 0 || showCreateOption) && (
         <ul
           id="label-editor-listbox"
           role="listbox"
           className="absolute left-0 right-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
           {suggestions.map((name, index) => (
-            <li key={name} id={`label-editor-option-${index}`} role="option" aria-selected={index === highlightedIndex}>
+            <li key={name} id={`label-editor-option-${index}`} role="option" aria-selected={index === nav.highlightedIndex}>
               <button
                 type="button"
                 onClick={() => addLabel(name)}
                 tabIndex={-1}
                 className={`w-full px-3 py-2 text-left text-sm ${
-                  index === highlightedIndex ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
+                  index === nav.highlightedIndex ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 {name}
@@ -137,13 +118,13 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
             </li>
           ))}
           {showCreateOption && (
-            <li id={`label-editor-option-${suggestions.length}`} role="option" aria-selected={highlightedIndex === suggestions.length}>
+            <li id={`label-editor-option-${suggestions.length}`} role="option" aria-selected={nav.highlightedIndex === suggestions.length}>
               <button
                 type="button"
                 onClick={() => addLabel(inputValue.trim())}
                 tabIndex={-1}
                 className={`w-full px-3 py-2 text-left text-sm ${
-                  highlightedIndex === suggestions.length ? "bg-blue-50 text-blue-700" : "text-gray-500 hover:bg-gray-50"
+                  nav.highlightedIndex === suggestions.length ? "bg-blue-50 text-blue-700" : "text-gray-500 hover:bg-gray-50"
                 }`}
               >
                 &quot;{inputValue.trim()}&quot; を作成

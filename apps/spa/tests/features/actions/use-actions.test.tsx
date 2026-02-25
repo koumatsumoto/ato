@@ -1,41 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { AuthProvider, useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useOpenActions, useAction, useCreateAction, useCloseAction, useReopenAction, useUpdateAction } from "@/features/actions/hooks/use-actions";
-import type { GitHubIssue } from "@/features/actions/types";
-
-function makeIssue(overrides: Partial<GitHubIssue> = {}): GitHubIssue {
-  return {
-    number: 1,
-    title: "Test action",
-    body: "Test body",
-    state: "open",
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-    closed_at: null,
-    html_url: "https://github.com/user/ato-datastore/issues/1",
-    ...overrides,
-  };
-}
-
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
-      </QueryClientProvider>
-    );
-  };
-}
+import { makeIssue } from "../../factories";
+import { createWrapper } from "../../test-utils";
 
 function setupAuthenticatedUser() {
   localStorage.setItem("ato:token", "test-token");

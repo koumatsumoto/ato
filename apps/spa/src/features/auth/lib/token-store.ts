@@ -1,4 +1,5 @@
 import type { TokenSet } from "@/features/auth/types";
+import { REPO_INITIALIZED_KEY } from "@/features/actions/lib/repo-constants";
 import { authLog } from "@/shared/lib/auth-log";
 
 const TOKEN_KEY = "ato:token";
@@ -6,7 +7,6 @@ const REFRESH_TOKEN_KEY = "ato:refresh-token";
 const EXPIRES_AT_KEY = "ato:token-expires-at";
 const REFRESH_EXPIRES_AT_KEY = "ato:refresh-expires-at";
 const USER_KEY = "ato:user";
-const REPO_INITIALIZED_KEY = "ato:repo-initialized";
 
 export function getToken(): string | null {
   const token = localStorage.getItem(TOKEN_KEY);
