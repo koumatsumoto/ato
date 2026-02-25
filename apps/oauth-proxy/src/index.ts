@@ -15,7 +15,7 @@ function securityHeaders(): Record<string, string> {
 function corsHeaders(origin: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "3600",
   };
@@ -108,14 +108,87 @@ async function handleCallback(url: URL, request: Request, env: Env): Promise<Res
       }),
     });
 
-    const tokenData: { access_token?: string } = await tokenRes.json();
+    const tokenData: {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+      refresh_token_expires_in?: number;
+    } = await tokenRes.json();
     if (!tokenData.access_token) {
       return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
     }
 
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:success", accessToken: tokenData.access_token }, clearCookie);
+    return postMessageResponse(
+      env.SPA_ORIGIN,
+      {
+        type: "ato:auth:success",
+        accessToken: tokenData.access_token,
+        ...(tokenData.refresh_token
+          ? {
+              refreshToken: tokenData.refresh_token,
+              expiresIn: tokenData.expires_in,
+              refreshTokenExpiresIn: tokenData.refresh_token_expires_in,
+            }
+          : {}),
+      },
+      clearCookie,
+    );
   } catch {
     return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
+  }
+}
+
+async function handleRefresh(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get("Origin");
+  if (origin !== env.SPA_ORIGIN) {
+    return new Response("Forbidden", { status: 403, headers: securityHeaders() });
+  }
+
+  let body: { refreshToken?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "invalid_request" }, { status: 400, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
+  }
+
+  if (!body.refreshToken) {
+    return Response.json({ error: "missing_refresh_token" }, { status: 400, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
+  }
+
+  try {
+    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: env.GITHUB_CLIENT_ID,
+        client_secret: env.GITHUB_CLIENT_SECRET,
+        grant_type: "refresh_token",
+        refresh_token: body.refreshToken,
+      }),
+    });
+
+    const tokenData: {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+      refresh_token_expires_in?: number;
+    } = await tokenRes.json();
+
+    if (!tokenData.access_token) {
+      return Response.json({ error: "refresh_failed" }, { status: 401, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
+    }
+
+    return Response.json(
+      {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresIn: tokenData.expires_in,
+        refreshTokenExpiresIn: tokenData.refresh_token_expires_in,
+      },
+      { status: 200, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } },
+    );
+  } catch {
+    return Response.json({ error: "refresh_failed" }, { status: 502, headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() } });
   }
 }
 
@@ -136,6 +209,10 @@ export default {
 
     if (url.pathname === "/auth/callback" && request.method === "GET") {
       return handleCallback(url, request, env);
+    }
+
+    if (url.pathname === "/auth/refresh" && request.method === "POST") {
+      return handleRefresh(request, env);
     }
 
     if (url.pathname === "/auth/health") {

@@ -1,8 +1,52 @@
 import { AuthError, NetworkError, RateLimitError } from "@/shared/lib/errors";
 import { extractRateLimit, isRateLimited } from "@/shared/lib/rate-limit";
 import { authLog } from "@/shared/lib/auth-log";
+import { getRefreshToken, setTokenSet } from "@/features/auth/lib/token-store";
+import { refreshAccessToken } from "@/features/auth/lib/auth-client";
+import { getOAuthProxyUrl } from "@/shared/lib/env";
 
 const GITHUB_API = "https://api.github.com";
+
+let refreshPromise: Promise<string> | null = null;
+
+async function tryRefresh(): Promise<string> {
+  if (refreshPromise) return refreshPromise;
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw new AuthError("No refresh token available");
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const proxyUrl = getOAuthProxyUrl();
+      const tokenSet = await refreshAccessToken(proxyUrl, refreshToken);
+      setTokenSet(tokenSet);
+      authLog("token-refresh:success");
+      return tokenSet.accessToken;
+    } catch (err) {
+      authLog("token-refresh:failed", String(err));
+      throw new AuthError("Token refresh failed");
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+function doFetch(path: string, token: string, options?: RequestInit): Promise<Response> {
+  return fetch(`${GITHUB_API}${path}`, {
+    ...options,
+    headers: {
+      ...options?.headers,
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+    cache: "no-store",
+  });
+}
 
 export async function githubFetch(path: string, options?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("ato:token");
@@ -13,16 +57,7 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
 
   let response: Response;
   try {
-    response = await fetch(`${GITHUB_API}${path}`, {
-      ...options,
-      headers: {
-        ...options?.headers,
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      cache: "no-store",
-    });
+    response = await doFetch(path, token, options);
   } catch {
     authLog("githubFetch:network-error", path);
     throw new NetworkError("Unable to connect. Please check your internet connection.");
@@ -30,7 +65,16 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
 
   if (response.status === 401) {
     authLog("githubFetch:401", path);
-    throw new AuthError("Token expired or revoked");
+    try {
+      const newToken = await tryRefresh();
+      response = await doFetch(path, newToken, options);
+      if (response.status === 401) {
+        throw new AuthError("Token expired after refresh");
+      }
+    } catch (err) {
+      if (err instanceof AuthError) throw err;
+      throw new AuthError("Token expired or revoked");
+    }
   }
 
   if (isRateLimited(response)) {
@@ -40,4 +84,9 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
   }
 
   return response;
+}
+
+/** Reset module state for testing */
+export function _resetRefreshState(): void {
+  refreshPromise = null;
 }

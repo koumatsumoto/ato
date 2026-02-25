@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { openLoginPopup, LOGIN_TIMEOUT_MS } from "@/features/auth/lib/auth-client";
+import { openLoginPopup, refreshAccessToken, LOGIN_TIMEOUT_MS } from "@/features/auth/lib/auth-client";
+import { AuthError } from "@/shared/lib/errors";
 
 describe("openLoginPopup", () => {
   beforeEach(() => {
@@ -33,7 +34,7 @@ describe("openLoginPopup", () => {
     expect(window.open).toHaveBeenCalledWith("https://proxy.example.com/auth/login", "ato-login", "width=600,height=700");
   });
 
-  it("resolves with accessToken on success message", async () => {
+  it("resolves with TokenSet on success message", async () => {
     const mockPopup = createMockPopup();
     vi.spyOn(window, "open").mockReturnValue(mockPopup as unknown as Window);
 
@@ -46,9 +47,38 @@ describe("openLoginPopup", () => {
       }),
     );
 
-    const token = await promise;
-    expect(token).toBe("my-token");
+    const tokenSet = await promise;
+    expect(tokenSet.accessToken).toBe("my-token");
+    expect(tokenSet.refreshToken).toBeUndefined();
+    expect(tokenSet.expiresAt).toBeUndefined();
     expect(mockPopup.close).toHaveBeenCalled();
+  });
+
+  it("resolves with full TokenSet when refresh token data is present", async () => {
+    const mockPopup = createMockPopup();
+    vi.spyOn(window, "open").mockReturnValue(mockPopup as unknown as Window);
+    vi.setSystemTime(new Date("2025-01-01T00:00:00Z"));
+
+    const promise = openLoginPopup("https://proxy.example.com");
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://proxy.example.com",
+        data: {
+          type: "ato:auth:success",
+          accessToken: "access-123",
+          refreshToken: "refresh-456",
+          expiresIn: 28800,
+          refreshTokenExpiresIn: 15811200,
+        },
+      }),
+    );
+
+    const tokenSet = await promise;
+    expect(tokenSet.accessToken).toBe("access-123");
+    expect(tokenSet.refreshToken).toBe("refresh-456");
+    expect(tokenSet.expiresAt).toBe(Date.now() + 28800 * 1000);
+    expect(tokenSet.refreshExpiresAt).toBe(Date.now() + 15811200 * 1000);
   });
 
   it("rejects on error message", async () => {
@@ -89,8 +119,8 @@ describe("openLoginPopup", () => {
       }),
     );
 
-    const token = await promise;
-    expect(token).toBe("real-token");
+    const tokenSet = await promise;
+    expect(tokenSet.accessToken).toBe("real-token");
   });
 
   it("rejects when popup fails to open", async () => {
@@ -170,8 +200,8 @@ describe("openLoginPopup", () => {
       }),
     );
 
-    const token = await promise;
-    expect(token).toBe("token-normalized");
+    const tokenSet = await promise;
+    expect(tokenSet.accessToken).toBe("token-normalized");
   });
 
   it("does not resolve after timeout even if message arrives later", async () => {
@@ -191,5 +221,65 @@ describe("openLoginPopup", () => {
         data: { type: "ato:auth:success", accessToken: "late-token" },
       }),
     );
+  });
+});
+
+describe("refreshAccessToken", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("returns TokenSet on successful refresh", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-01-01T00:00:00Z"));
+
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          accessToken: "new-access",
+          refreshToken: "new-refresh",
+          expiresIn: 28800,
+          refreshTokenExpiresIn: 15811200,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const tokenSet = await refreshAccessToken("https://proxy.example.com", "old-refresh");
+
+    expect(tokenSet.accessToken).toBe("new-access");
+    expect(tokenSet.refreshToken).toBe("new-refresh");
+    expect(tokenSet.expiresAt).toBe(Date.now() + 28800 * 1000);
+    expect(tokenSet.refreshExpiresAt).toBe(Date.now() + 15811200 * 1000);
+
+    vi.useRealTimers();
+  });
+
+  it("sends POST request to proxy /auth/refresh", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ accessToken: "new" }), { status: 200 }));
+    globalThis.fetch = mockFetch;
+
+    await refreshAccessToken("https://proxy.example.com", "my-refresh-token");
+
+    expect(mockFetch).toHaveBeenCalledWith("https://proxy.example.com/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: "my-refresh-token" }),
+    });
+  });
+
+  it("throws AuthError when response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "refresh_failed" }), { status: 401 }));
+
+    await expect(refreshAccessToken("https://proxy.example.com", "bad-token")).rejects.toThrow(AuthError);
+  });
+
+  it("propagates network errors", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(refreshAccessToken("https://proxy.example.com", "token")).rejects.toThrow(TypeError);
   });
 });

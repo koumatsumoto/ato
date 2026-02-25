@@ -62,7 +62,7 @@ describe("OAuth Proxy Worker", () => {
 
       expect(response.status).toBe(204);
       expect(response.headers.get("Access-Control-Allow-Origin")).toBe(TEST_ENV.SPA_ORIGIN);
-      expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, OPTIONS");
+      expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST, OPTIONS");
       expect(response.headers.get("Access-Control-Allow-Headers")).toBe("Content-Type");
       expect(response.headers.get("Access-Control-Max-Age")).toBe("3600");
     });
@@ -179,6 +179,42 @@ describe("OAuth Proxy Worker", () => {
         });
       });
 
+      it("forwards refresh token data when present in GitHub response", async () => {
+        vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              access_token: "gho_access",
+              refresh_token: "ghr_refresh",
+              expires_in: 28800,
+              refresh_token_expires_in: 15811200,
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        );
+
+        const response = await worker.fetch(createCallbackRequest({ code: "valid-code", state: FIXED_STATE }, FIXED_STATE), TEST_ENV);
+
+        const body = await response.text();
+        expect(body).toContain('"accessToken":"gho_access"');
+        expect(body).toContain('"refreshToken":"ghr_refresh"');
+        expect(body).toContain('"expiresIn":28800');
+        expect(body).toContain('"refreshTokenExpiresIn":15811200');
+      });
+
+      it("omits refresh fields when GitHub response has no refresh_token", async () => {
+        vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+          new Response(JSON.stringify({ access_token: "gho_no_refresh" }), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+
+        const response = await worker.fetch(createCallbackRequest({ code: "valid-code", state: FIXED_STATE }, FIXED_STATE), TEST_ENV);
+
+        const body = await response.text();
+        expect(body).toContain('"accessToken":"gho_no_refresh"');
+        expect(body).not.toContain("refreshToken");
+      });
+
       it("returns error when GitHub API returns no access_token", async () => {
         vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
           new Response(JSON.stringify({ error: "bad_verification_code" }), {
@@ -269,6 +305,131 @@ describe("OAuth Proxy Worker", () => {
       const body = await response.text();
       expect(body).not.toContain("</script><script>");
       expect(body).toContain("\\u003c");
+    });
+  });
+
+  describe("POST /auth/refresh", () => {
+    function createRefreshRequest(body: object, origin?: string): Request {
+      return new Request("http://localhost:8787/auth/refresh", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: origin ?? TEST_ENV.SPA_ORIGIN,
+        },
+        body: JSON.stringify(body),
+      });
+    }
+
+    it("returns new tokens on successful refresh", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "gho_new_access",
+            refresh_token: "ghr_new_refresh",
+            expires_in: 28800,
+            refresh_token_expires_in: 15811200,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+      const response = await worker.fetch(createRefreshRequest({ refreshToken: "ghr_old_refresh" }), TEST_ENV);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toEqual({
+        accessToken: "gho_new_access",
+        refreshToken: "ghr_new_refresh",
+        expiresIn: 28800,
+        refreshTokenExpiresIn: 15811200,
+      });
+    });
+
+    it("sends correct payload to GitHub", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "gho_new" }), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      await worker.fetch(createRefreshRequest({ refreshToken: "ghr_test" }), TEST_ENV);
+
+      expect(fetchSpy).toHaveBeenCalledWith("https://github.com/login/oauth/access_token", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: TEST_ENV.GITHUB_CLIENT_ID,
+          client_secret: TEST_ENV.GITHUB_CLIENT_SECRET,
+          grant_type: "refresh_token",
+          refresh_token: "ghr_test",
+        }),
+      });
+    });
+
+    it("returns 403 when Origin does not match SPA_ORIGIN", async () => {
+      const response = await worker.fetch(createRefreshRequest({ refreshToken: "ghr_test" }, "https://evil.com"), TEST_ENV);
+
+      expect(response.status).toBe(403);
+    });
+
+    it("returns 400 for invalid JSON body", async () => {
+      const response = await worker.fetch(
+        new Request("http://localhost:8787/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: TEST_ENV.SPA_ORIGIN },
+          body: "not-json",
+        }),
+        TEST_ENV,
+      );
+
+      expect(response.status).toBe(400);
+      const data = (await response.json()) as { error: string };
+      expect(data.error).toBe("invalid_request");
+    });
+
+    it("returns 400 when refreshToken is missing", async () => {
+      const response = await worker.fetch(createRefreshRequest({}), TEST_ENV);
+
+      expect(response.status).toBe(400);
+      const data = (await response.json()) as { error: string };
+      expect(data.error).toBe("missing_refresh_token");
+    });
+
+    it("returns 401 when GitHub returns no access_token", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "bad_refresh_token" }), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      const response = await worker.fetch(createRefreshRequest({ refreshToken: "ghr_expired" }), TEST_ENV);
+
+      expect(response.status).toBe(401);
+      const data = (await response.json()) as { error: string };
+      expect(data.error).toBe("refresh_failed");
+    });
+
+    it("returns 502 when GitHub API fetch throws", async () => {
+      vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Network error"));
+
+      const response = await worker.fetch(createRefreshRequest({ refreshToken: "ghr_test" }), TEST_ENV);
+
+      expect(response.status).toBe(502);
+      const data = (await response.json()) as { error: string };
+      expect(data.error).toBe("refresh_failed");
+    });
+
+    it("includes CORS and security headers", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "gho_new" }), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      const response = await worker.fetch(createRefreshRequest({ refreshToken: "ghr_test" }), TEST_ENV);
+
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe(TEST_ENV.SPA_ORIGIN);
+      expectSecurityHeaders(response);
     });
   });
 

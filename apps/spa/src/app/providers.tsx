@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error) => {
-        if (error instanceof AuthError) return failureCount < 2;
+        if (error instanceof AuthError) return false;
         if (error instanceof GitHubApiError && [403, 404, 422].includes(error.status)) {
           return false;
         }

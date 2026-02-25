@@ -16,9 +16,19 @@ export interface AuthContextValue {
   readonly logout: () => void;
 }
 
+export interface TokenSet {
+  readonly accessToken: string;
+  readonly refreshToken: string | undefined;
+  readonly expiresAt: number | undefined;
+  readonly refreshExpiresAt: number | undefined;
+}
+
 export interface OAuthSuccessMessage {
   readonly type: "ato:auth:success";
   readonly accessToken: string;
+  readonly refreshToken?: string | undefined;
+  readonly expiresIn?: number | undefined;
+  readonly refreshTokenExpiresIn?: number | undefined;
 }
 
 export interface OAuthErrorMessage {

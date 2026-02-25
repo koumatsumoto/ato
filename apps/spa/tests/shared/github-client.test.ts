@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AuthError, NetworkError, RateLimitError } from "@/shared/lib/errors";
+import { githubFetch, _resetRefreshState } from "@/shared/lib/github-client";
+
+vi.mock("@/shared/lib/env", () => ({
+  getOAuthProxyUrl: () => "https://proxy.example.com",
+}));
 
 describe("githubFetch", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     localStorage.clear();
+    _resetRefreshState();
   });
 
   afterEach(() => {
@@ -13,13 +19,7 @@ describe("githubFetch", () => {
     vi.restoreAllMocks();
   });
 
-  async function loadGithubFetch() {
-    const mod = await import("@/shared/lib/github-client");
-    return mod.githubFetch;
-  }
-
   it("throws AuthError when no token in localStorage", async () => {
-    const githubFetch = await loadGithubFetch();
     await expect(githubFetch("/user")).rejects.toThrow(AuthError);
   });
 
@@ -28,7 +28,6 @@ describe("githubFetch", () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     globalThis.fetch = mockFetch;
 
-    const githubFetch = await loadGithubFetch();
     await githubFetch("/user");
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -48,7 +47,6 @@ describe("githubFetch", () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     globalThis.fetch = mockFetch;
 
-    const githubFetch = await loadGithubFetch();
     await githubFetch("/repos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -68,27 +66,16 @@ describe("githubFetch", () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     globalThis.fetch = mockFetch;
 
-    const githubFetch = await loadGithubFetch();
     await githubFetch("/user");
 
     const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(options.cache).toBe("no-store");
   });
 
-  it("throws AuthError on 401 response without clearing token", async () => {
-    localStorage.setItem("ato:token", "expired-token");
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-
-    const githubFetch = await loadGithubFetch();
-    await expect(githubFetch("/user")).rejects.toThrow(AuthError);
-    expect(localStorage.getItem("ato:token")).toBe("expired-token");
-  });
-
   it("throws NetworkError when fetch rejects", async () => {
     localStorage.setItem("ato:token", "valid-token");
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
 
-    const githubFetch = await loadGithubFetch();
     await expect(githubFetch("/user")).rejects.toThrow(NetworkError);
   });
 
@@ -96,7 +83,6 @@ describe("githubFetch", () => {
     localStorage.setItem("ato:token", "valid-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response('{"login":"user"}', { status: 200 }));
 
-    const githubFetch = await loadGithubFetch();
     const response = await githubFetch("/user");
 
     expect(response.status).toBe(200);
@@ -117,7 +103,6 @@ describe("githubFetch", () => {
       }),
     );
 
-    const githubFetch = await loadGithubFetch();
     await expect(githubFetch("/user")).rejects.toThrow(RateLimitError);
   });
 
@@ -125,9 +110,102 @@ describe("githubFetch", () => {
     localStorage.setItem("ato:token", "valid-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("Not Found", { status: 404 }));
 
-    const githubFetch = await loadGithubFetch();
     const response = await githubFetch("/repos/user/missing");
 
     expect(response.status).toBe(404);
+  });
+
+  describe("401 with refresh token", () => {
+    it("refreshes token and retries on 401", async () => {
+      localStorage.setItem("ato:token", "expired-token");
+      localStorage.setItem("ato:refresh-token", "valid-refresh");
+
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              accessToken: "new-access-token",
+              refreshToken: "new-refresh-token",
+              expiresIn: 28800,
+              refreshTokenExpiresIn: 15811200,
+            }),
+            { status: 200 },
+          ),
+        )
+        .mockResolvedValueOnce(new Response('{"login":"user"}', { status: 200 }));
+      globalThis.fetch = mockFetch;
+
+      const response = await githubFetch("/user");
+
+      expect(response.status).toBe(200);
+      expect(localStorage.getItem("ato:token")).toBe("new-access-token");
+      expect(localStorage.getItem("ato:refresh-token")).toBe("new-refresh-token");
+    });
+
+    it("throws AuthError when no refresh token available", async () => {
+      localStorage.setItem("ato:token", "expired-token");
+
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+
+      await expect(githubFetch("/user")).rejects.toThrow(AuthError);
+      expect(localStorage.getItem("ato:token")).toBe("expired-token");
+    });
+
+    it("throws AuthError when refresh succeeds but retry is still 401", async () => {
+      localStorage.setItem("ato:token", "expired-token");
+      localStorage.setItem("ato:refresh-token", "valid-refresh");
+
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ accessToken: "new-token", refreshToken: "new-refresh" }), { status: 200 }))
+        .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
+      globalThis.fetch = mockFetch;
+
+      await expect(githubFetch("/user")).rejects.toThrow(AuthError);
+    });
+
+    it("throws AuthError when refresh endpoint returns error", async () => {
+      localStorage.setItem("ato:token", "expired-token");
+      localStorage.setItem("ato:refresh-token", "bad-refresh");
+
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: "refresh_failed" }), { status: 401 }));
+      globalThis.fetch = mockFetch;
+
+      await expect(githubFetch("/user")).rejects.toThrow(AuthError);
+    });
+
+    it("deduplicates concurrent refresh attempts (mutex)", async () => {
+      localStorage.setItem("ato:token", "expired-token");
+      localStorage.setItem("ato:refresh-token", "valid-refresh");
+
+      let refreshCallCount = 0;
+      const mockFetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes("proxy.example.com")) {
+          refreshCallCount++;
+          return Promise.resolve(new Response(JSON.stringify({ accessToken: "new-token", refreshToken: "new-refresh" }), { status: 200 }));
+        }
+        if (url.includes("api.github.com")) {
+          const token = localStorage.getItem("ato:token");
+          if (token === "expired-token") {
+            return Promise.resolve(new Response("Unauthorized", { status: 401 }));
+          }
+          return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+        }
+        return Promise.resolve(new Response("Not Found", { status: 404 }));
+      });
+      globalThis.fetch = mockFetch;
+
+      const [r1, r2] = await Promise.all([githubFetch("/user"), githubFetch("/repos")]);
+
+      expect(r1.status).toBe(200);
+      expect(r2.status).toBe(200);
+      expect(refreshCallCount).toBe(1);
+    });
   });
 });

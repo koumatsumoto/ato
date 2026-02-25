@@ -1,4 +1,5 @@
-import type { OAuthMessage } from "@/features/auth/types";
+import type { OAuthMessage, TokenSet } from "@/features/auth/types";
+import { AuthError } from "@/shared/lib/errors";
 
 export const LOGIN_TIMEOUT_MS = 120_000;
 const POPUP_POLL_INTERVAL_MS = 500;
@@ -15,7 +16,17 @@ function createSettleGuard(cleanup: () => void): (action: SettleAction) => void 
   };
 }
 
-export function openLoginPopup(proxyUrl: string): Promise<string> {
+function toTokenSet(data: OAuthMessage & { type: "ato:auth:success" }): TokenSet {
+  const now = Date.now();
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    expiresAt: data.expiresIn !== undefined ? now + data.expiresIn * 1000 : undefined,
+    refreshExpiresAt: data.refreshTokenExpiresIn !== undefined ? now + data.refreshTokenExpiresIn * 1000 : undefined,
+  };
+}
+
+export function openLoginPopup(proxyUrl: string): Promise<TokenSet> {
   return new Promise((resolve, reject) => {
     const popup = window.open(`${proxyUrl}/auth/login`, "ato-login", "width=600,height=700");
     if (!popup) {
@@ -39,7 +50,7 @@ export function openLoginPopup(proxyUrl: string): Promise<string> {
       if (data?.type === "ato:auth:success") {
         settle(() => {
           popup.close();
-          resolve(data.accessToken);
+          resolve(toTokenSet(data));
         });
       }
       if (data?.type === "ato:auth:error") {
@@ -65,4 +76,32 @@ export function openLoginPopup(proxyUrl: string): Promise<string> {
 
     window.addEventListener("message", handler);
   });
+}
+
+interface RefreshResponse {
+  readonly accessToken: string;
+  readonly refreshToken?: string | undefined;
+  readonly expiresIn?: number | undefined;
+  readonly refreshTokenExpiresIn?: number | undefined;
+}
+
+export async function refreshAccessToken(proxyUrl: string, refreshToken: string): Promise<TokenSet> {
+  const response = await fetch(`${proxyUrl}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!response.ok) {
+    throw new AuthError("Token refresh failed");
+  }
+
+  const data: RefreshResponse = await response.json();
+  const now = Date.now();
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    expiresAt: data.expiresIn !== undefined ? now + data.expiresIn * 1000 : undefined,
+    refreshExpiresAt: data.refreshTokenExpiresIn !== undefined ? now + data.refreshTokenExpiresIn * 1000 : undefined,
+  };
 }

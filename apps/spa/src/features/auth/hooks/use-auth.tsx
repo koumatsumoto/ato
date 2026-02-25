@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthContextValue, AuthState, AuthUser } from "@/features/auth/types";
 import { AuthError, GitHubApiError, NetworkError, RateLimitError } from "@/shared/lib/errors";
-import { getToken, setToken, clearToken, TOKEN_CLEARED_EVENT } from "@/features/auth/lib/token-store";
+import { getToken, setTokenSet, clearToken, TOKEN_CLEARED_EVENT } from "@/features/auth/lib/token-store";
 import { openLoginPopup } from "@/features/auth/lib/auth-client";
 import { githubFetch } from "@/shared/lib/github-client";
 import { getOAuthProxyUrl } from "@/shared/lib/env";
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     enabled: !!token,
     retry: (failureCount, err) => {
-      if (err instanceof AuthError) return failureCount < 2;
+      if (err instanceof AuthError) return false;
       if (err instanceof NetworkError) return failureCount < 3;
       if (err instanceof RateLimitError) return failureCount < 2;
       if (err instanceof GitHubApiError && err.status >= 500) return failureCount < 3;
@@ -77,9 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async () => {
     const proxyUrl = getOAuthProxyUrl();
-    const accessToken = await openLoginPopup(proxyUrl);
-    setToken(accessToken);
-    setTokenState(accessToken);
+    const tokenSet = await openLoginPopup(proxyUrl);
+    setTokenSet(tokenSet);
+    setTokenState(tokenSet.accessToken);
     await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
   }, [queryClient]);
 

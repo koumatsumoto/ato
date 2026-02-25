@@ -97,12 +97,17 @@ describe("useAuth", () => {
     expect(localStorage.getItem("ato:token")).toBeNull();
   });
 
-  it("recovers from transient 401 on retry", async () => {
+  it("recovers from 401 when refresh token is available", async () => {
     vi.useFakeTimers();
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem("ato:token", "expired-token");
+    localStorage.setItem("ato:refresh-token", "valid-refresh");
 
     const mockFetch = vi.fn();
+    // First call: githubFetch gets 401
     mockFetch.mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
+    // Second call: refresh endpoint returns new tokens
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ accessToken: "new-token", refreshToken: "new-refresh" }), { status: 200 }));
+    // Third call: retry with new token succeeds
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ login: "testuser", id: 123, avatar_url: "https://example.com/avatar" }), { status: 200 }),
     );
@@ -114,8 +119,8 @@ describe("useAuth", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(result.current.state.token).toBe("valid-token");
     expect(result.current.state.user?.login).toBe("testuser");
+    expect(localStorage.getItem("ato:token")).toBe("new-token");
   });
 
   it("does not clear token on 500 server error", async () => {
