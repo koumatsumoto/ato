@@ -71,6 +71,10 @@ describe("useAuth", () => {
   });
 
   it("recovers from 401 when refresh token is available", async () => {
+    // getOAuthProxyUrl requires VITE_OAUTH_PROXY_URL which is not set in CI
+    const envModule = await import("@/shared/lib/env");
+    vi.spyOn(envModule, "getOAuthProxyUrl").mockReturnValue("http://localhost:8787");
+
     localStorage.setItem("ato:token", "expired-token");
     localStorage.setItem("ato:refresh-token", "valid-refresh");
 
