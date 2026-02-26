@@ -1,6 +1,6 @@
 import type { Action, CreateActionInput, UpdateActionInput, GitHubIssue } from "@/features/actions/types";
-import { GitHubApiError, NotFoundError } from "@/shared/lib/errors";
-import { githubFetch } from "@/shared/lib/github-client";
+import { NotFoundError } from "@/shared/lib/errors";
+import { githubFetch, throwIfNotOk } from "@/shared/lib/github-client";
 import { mapIssueToAction } from "./issue-mapper";
 import { parseLinkHeader } from "./pagination";
 import { repoPath } from "./repo-constants";
@@ -31,9 +31,7 @@ export async function fetchActions(
 
   const response = await githubFetch(`${repoPath(login)}/issues?${query}`);
 
-  if (!response.ok) {
-    throw new GitHubApiError(response.status, await response.json());
-  }
+  await throwIfNotOk(response);
 
   const issues: GitHubIssue[] = await response.json();
   const actions = issues.filter((issue) => !issue.pull_request).map(mapIssueToAction);
@@ -55,9 +53,7 @@ export async function createAction(login: string, input: CreateActionInput): Pro
     }),
   });
 
-  if (!response.ok) {
-    throw new GitHubApiError(response.status, await response.json());
-  }
+  await throwIfNotOk(response);
 
   return mapIssueToAction(await response.json());
 }
@@ -65,9 +61,7 @@ export async function createAction(login: string, input: CreateActionInput): Pro
 export async function fetchAction(login: string, id: number): Promise<Action> {
   const response = await githubFetch(`${repoPath(login)}/issues/${id}`);
 
-  if (!response.ok) {
-    throw new GitHubApiError(response.status, await response.json());
-  }
+  await throwIfNotOk(response);
 
   const issue: GitHubIssue = await response.json();
   if (issue.pull_request) {
@@ -90,9 +84,7 @@ export async function updateAction(login: string, id: number, input: UpdateActio
     }),
   });
 
-  if (!response.ok) {
-    throw new GitHubApiError(response.status, await response.json());
-  }
+  await throwIfNotOk(response);
 
   return mapIssueToAction(await response.json());
 }

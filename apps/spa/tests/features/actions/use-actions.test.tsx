@@ -3,29 +3,9 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useOpenActions, useAction, useCreateAction, useCloseAction, useReopenAction, useUpdateAction } from "@/features/actions/hooks/use-actions";
 import { makeIssue } from "../../factories";
-import { createWrapper } from "../../test-utils";
-
-function setupAuthenticatedUser() {
-  localStorage.setItem("ato:token", "test-token");
-  localStorage.setItem("ato:repo-initialized", "true");
-}
+import { createWrapper, setupAuthenticatedUser, mockFetchResponses } from "../../test-utils";
 
 const userResponse = { login: "testuser", id: 1, avatar_url: "https://example.com/avatar" };
-
-function mockFetchResponses(...responses: Array<{ body: unknown; status?: number; headers?: Record<string, string> }>) {
-  const fn = vi.fn();
-  for (const { body, status = 200, headers = {} } of responses) {
-    fn.mockResolvedValueOnce(
-      new Response(JSON.stringify(body), {
-        status,
-        headers: { "Content-Type": "application/json", ...headers },
-      }),
-    );
-  }
-  // Default: keep returning empty arrays for invalidation refetches
-  fn.mockResolvedValue(new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } }));
-  return fn;
-}
 
 describe("use-actions hooks", () => {
   const originalFetch = globalThis.fetch;

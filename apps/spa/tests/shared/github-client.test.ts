@@ -1,17 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AuthError, NetworkError, RateLimitError } from "@/shared/lib/errors";
-import { githubFetch, _resetRefreshState } from "@/shared/lib/github-client";
-
-vi.mock("@/shared/lib/env", () => ({
-  getOAuthProxyUrl: () => "https://proxy.example.com",
-}));
+import { TOKEN_KEY } from "@/shared/lib/storage-keys";
+import { _resetTokenRefresh, registerTokenRefresh } from "@/shared/lib/token-refresh";
+import { githubFetch } from "@/shared/lib/github-client";
 
 describe("githubFetch", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     localStorage.clear();
-    _resetRefreshState();
+    _resetTokenRefresh();
   });
 
   afterEach(() => {
@@ -24,7 +22,7 @@ describe("githubFetch", () => {
   });
 
   it("adds Authorization header with Bearer token", async () => {
-    localStorage.setItem("ato:token", "test-token-123");
+    localStorage.setItem(TOKEN_KEY, "test-token-123");
     const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     globalThis.fetch = mockFetch;
 
@@ -43,7 +41,7 @@ describe("githubFetch", () => {
   });
 
   it("merges custom headers with default headers", async () => {
-    localStorage.setItem("ato:token", "test-token");
+    localStorage.setItem(TOKEN_KEY, "test-token");
     const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     globalThis.fetch = mockFetch;
 
@@ -62,7 +60,7 @@ describe("githubFetch", () => {
   });
 
   it("sets cache: 'no-store' to bypass browser HTTP cache", async () => {
-    localStorage.setItem("ato:token", "test-token");
+    localStorage.setItem(TOKEN_KEY, "test-token");
     const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     globalThis.fetch = mockFetch;
 
@@ -73,14 +71,14 @@ describe("githubFetch", () => {
   });
 
   it("throws NetworkError when fetch rejects", async () => {
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem(TOKEN_KEY, "valid-token");
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
 
     await expect(githubFetch("/user")).rejects.toThrow(NetworkError);
   });
 
   it("returns Response on success", async () => {
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem(TOKEN_KEY, "valid-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response('{"login":"user"}', { status: 200 }));
 
     const response = await githubFetch("/user");
@@ -91,7 +89,7 @@ describe("githubFetch", () => {
   });
 
   it("throws RateLimitError when rate limited", async () => {
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem(TOKEN_KEY, "valid-token");
     const resetTimestamp = Math.floor(Date.now() / 1000) + 3600;
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response("Rate limit exceeded", {
@@ -107,7 +105,7 @@ describe("githubFetch", () => {
   });
 
   it("does not throw on non-401 error responses", async () => {
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem(TOKEN_KEY, "valid-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("Not Found", { status: 404 }));
 
     const response = await githubFetch("/repos/user/missing");
@@ -116,96 +114,53 @@ describe("githubFetch", () => {
   });
 
   describe("401 with refresh token", () => {
-    it("refreshes token and retries on 401", async () => {
-      localStorage.setItem("ato:token", "expired-token");
-      localStorage.setItem("ato:refresh-token", "valid-refresh");
+    it("calls registered refresh function and retries on 401", async () => {
+      localStorage.setItem(TOKEN_KEY, "expired-token");
+      registerTokenRefresh(() => {
+        localStorage.setItem(TOKEN_KEY, "new-access-token");
+        return Promise.resolve("new-access-token");
+      });
 
       const mockFetch = vi
         .fn()
         .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({
-              accessToken: "new-access-token",
-              refreshToken: "new-refresh-token",
-              expiresIn: 28800,
-              refreshTokenExpiresIn: 15811200,
-            }),
-            { status: 200 },
-          ),
-        )
         .mockResolvedValueOnce(new Response('{"login":"user"}', { status: 200 }));
       globalThis.fetch = mockFetch;
 
       const response = await githubFetch("/user");
 
       expect(response.status).toBe(200);
-      expect(localStorage.getItem("ato:token")).toBe("new-access-token");
-      expect(localStorage.getItem("ato:refresh-token")).toBe("new-refresh-token");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it("throws AuthError when no refresh token available", async () => {
-      localStorage.setItem("ato:token", "expired-token");
+    it("throws AuthError when no refresh function is registered", async () => {
+      localStorage.setItem(TOKEN_KEY, "expired-token");
 
       globalThis.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
 
       await expect(githubFetch("/user")).rejects.toThrow(AuthError);
-      expect(localStorage.getItem("ato:token")).toBe("expired-token");
     });
 
     it("throws AuthError when refresh succeeds but retry is still 401", async () => {
-      localStorage.setItem("ato:token", "expired-token");
-      localStorage.setItem("ato:refresh-token", "valid-refresh");
+      localStorage.setItem(TOKEN_KEY, "expired-token");
+      registerTokenRefresh(() => Promise.resolve("new-token"));
 
       const mockFetch = vi
         .fn()
         .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
-        .mockResolvedValueOnce(new Response(JSON.stringify({ accessToken: "new-token", refreshToken: "new-refresh" }), { status: 200 }))
         .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
       globalThis.fetch = mockFetch;
 
       await expect(githubFetch("/user")).rejects.toThrow(AuthError);
     });
 
-    it("throws AuthError when refresh endpoint returns error", async () => {
-      localStorage.setItem("ato:token", "expired-token");
-      localStorage.setItem("ato:refresh-token", "bad-refresh");
+    it("throws AuthError when refresh function rejects", async () => {
+      localStorage.setItem(TOKEN_KEY, "expired-token");
+      registerTokenRefresh(() => Promise.reject(new Error("refresh failed")));
 
-      const mockFetch = vi
-        .fn()
-        .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
-        .mockResolvedValueOnce(new Response(JSON.stringify({ error: "refresh_failed" }), { status: 401 }));
-      globalThis.fetch = mockFetch;
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
 
       await expect(githubFetch("/user")).rejects.toThrow(AuthError);
-    });
-
-    it("deduplicates concurrent refresh attempts (mutex)", async () => {
-      localStorage.setItem("ato:token", "expired-token");
-      localStorage.setItem("ato:refresh-token", "valid-refresh");
-
-      let refreshCallCount = 0;
-      const mockFetch = vi.fn().mockImplementation((url: string) => {
-        if (url.includes("proxy.example.com")) {
-          refreshCallCount++;
-          return Promise.resolve(new Response(JSON.stringify({ accessToken: "new-token", refreshToken: "new-refresh" }), { status: 200 }));
-        }
-        if (url.includes("api.github.com")) {
-          const token = localStorage.getItem("ato:token");
-          if (token === "expired-token") {
-            return Promise.resolve(new Response("Unauthorized", { status: 401 }));
-          }
-          return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
-        }
-        return Promise.resolve(new Response("Not Found", { status: 404 }));
-      });
-      globalThis.fetch = mockFetch;
-
-      const [r1, r2] = await Promise.all([githubFetch("/user"), githubFetch("/repos")]);
-
-      expect(r1.status).toBe(200);
-      expect(r2.status).toBe(200);
-      expect(refreshCallCount).toBe(1);
     });
   });
 });

@@ -3,6 +3,7 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { clearToken } from "@/features/auth/lib/token-store";
 import { createWrapper } from "../../test-utils";
+import "@/features/auth/lib/register-token-refresh";
 
 describe("useAuth", () => {
   const originalFetch = globalThis.fetch;

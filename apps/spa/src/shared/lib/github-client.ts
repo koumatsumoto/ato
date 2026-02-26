@@ -1,39 +1,10 @@
-import { AuthError, NetworkError, RateLimitError } from "@/shared/lib/errors";
+import { AuthError, GitHubApiError, NetworkError, RateLimitError } from "@/shared/lib/errors";
 import { extractRateLimit, isRateLimited } from "@/shared/lib/rate-limit";
 import { authLog } from "@/shared/lib/auth-log";
-import { getRefreshToken, setTokenSet } from "@/features/auth/lib/token-store";
-import { refreshAccessToken } from "@/features/auth/lib/auth-client";
-import { getOAuthProxyUrl } from "@/shared/lib/env";
+import { getTokenRefreshFn } from "@/shared/lib/token-refresh";
+import { TOKEN_KEY } from "@/shared/lib/storage-keys";
 
 const GITHUB_API = "https://api.github.com";
-
-let refreshPromise: Promise<string> | null = null;
-
-async function tryRefresh(): Promise<string> {
-  if (refreshPromise) return refreshPromise;
-
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    throw new AuthError("No refresh token available");
-  }
-
-  refreshPromise = (async () => {
-    try {
-      const proxyUrl = getOAuthProxyUrl();
-      const tokenSet = await refreshAccessToken(proxyUrl, refreshToken);
-      setTokenSet(tokenSet);
-      authLog("token-refresh:success");
-      return tokenSet.accessToken;
-    } catch (err) {
-      authLog("token-refresh:failed", String(err));
-      throw new AuthError("Token refresh failed");
-    } finally {
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
-}
 
 function doFetch(path: string, token: string, options?: RequestInit): Promise<Response> {
   return fetch(`${GITHUB_API}${path}`, {
@@ -49,7 +20,7 @@ function doFetch(path: string, token: string, options?: RequestInit): Promise<Re
 }
 
 export async function githubFetch(path: string, options?: RequestInit): Promise<Response> {
-  const token = localStorage.getItem("ato:token");
+  const token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
     authLog("githubFetch:no-token", path);
     throw new AuthError("Not authenticated");
@@ -65,8 +36,12 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
 
   if (response.status === 401) {
     authLog("githubFetch:401", path);
+    const refreshFn = getTokenRefreshFn();
+    if (!refreshFn) {
+      throw new AuthError("Token expired or revoked");
+    }
     try {
-      const newToken = await tryRefresh();
+      const newToken = await refreshFn();
       response = await doFetch(path, newToken, options);
       if (response.status === 401) {
         throw new AuthError("Token expired after refresh");
@@ -86,7 +61,8 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
   return response;
 }
 
-/** Reset module state for testing */
-export function _resetRefreshState(): void {
-  refreshPromise = null;
+export async function throwIfNotOk(response: Response): Promise<void> {
+  if (!response.ok) {
+    throw new GitHubApiError(response.status, await response.json());
+  }
 }

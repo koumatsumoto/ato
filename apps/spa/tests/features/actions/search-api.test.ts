@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { TOKEN_KEY } from "@/shared/lib/storage-keys";
 
 describe("searchActions", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem("ato:token", "test-token");
+    localStorage.setItem(TOKEN_KEY, "test-token");
   });
 
   afterEach(() => {

@@ -1,6 +1,5 @@
 import type { Action, GitHubSearchResult } from "@/features/actions/types";
-import { GitHubApiError } from "@/shared/lib/errors";
-import { githubFetch } from "@/shared/lib/github-client";
+import { githubFetch, throwIfNotOk } from "@/shared/lib/github-client";
 import { mapIssueToAction } from "./issue-mapper";
 import { REPO_NAME } from "./repo-constants";
 
@@ -30,9 +29,7 @@ export async function searchActions(
 
   const response = await githubFetch(`/search/issues?${searchParams}`);
 
-  if (!response.ok) {
-    throw new GitHubApiError(response.status, await response.json());
-  }
+  await throwIfNotOk(response);
 
   const result: GitHubSearchResult = await response.json();
   return result.items.filter((issue) => !issue.pull_request).map(mapIssueToAction);

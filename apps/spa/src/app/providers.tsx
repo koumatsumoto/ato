@@ -3,6 +3,7 @@ import { AuthProvider } from "@/features/auth/hooks/use-auth";
 import { AuthError, GitHubApiError } from "@/shared/lib/errors";
 import { clearToken } from "@/features/auth/lib/token-store";
 import { authLog } from "@/shared/lib/auth-log";
+import "@/features/auth/lib/register-token-refresh";
 
 const queryCache = new QueryCache({
   onError: (error, query) => {

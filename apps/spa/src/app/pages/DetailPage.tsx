@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { useAction, useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
 import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
+import { useDraftRestoration } from "@/features/actions/hooks/use-draft-restoration";
 import { useRelativeTime } from "@/shared/hooks/use-relative-time";
 import { addRecentLabels } from "@/features/actions/lib/label-store";
-import { getDraft, removeDraft } from "@/features/actions/lib/draft-store";
 import { DetailSkeleton } from "@/features/actions/components/DetailSkeleton";
 import { LabelEditor } from "@/features/actions/components/LabelEditor";
 import { NotFound } from "@/shared/components/ui/NotFound";
@@ -16,39 +16,9 @@ export function DetailPage() {
   const closeAction = useCloseAction();
   const reopenAction = useReopenAction();
 
-  const [title, setTitle] = useState("");
-  const [memo, setMemo] = useState("");
-  const [labels, setLabels] = useState<readonly string[]>([]);
+  const { title, memo, labels, setTitle, setMemo, setLabels, restoredFromDraft } = useDraftRestoration({ action });
   const [isTitleEditing, setIsTitleEditing] = useState(false);
-  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const initializedRef = useRef(false);
-
-  useEffect(() => {
-    if (action && !initializedRef.current) {
-      const draft = getDraft(action.id);
-
-      if (draft && new Date(draft.savedAt).getTime() > new Date(action.updatedAt).getTime()) {
-        setTitle(draft.title);
-        setMemo(draft.memo);
-        setLabels(draft.labels ?? action.labels);
-        setRestoredFromDraft(true);
-      } else {
-        setTitle(action.title);
-        setMemo(action.memo);
-        setLabels(action.labels);
-        if (draft) removeDraft(action.id);
-      }
-
-      initializedRef.current = true;
-    }
-  }, [action]);
-
-  useEffect(() => {
-    if (!restoredFromDraft) return;
-    const timer = setTimeout(() => setRestoredFromDraft(false), 5_000);
-    return () => clearTimeout(timer);
-  }, [restoredFromDraft]);
 
   const { lastSavedAt, isSaving, saveNow, saveLabels } = useAutoSave({
     id: Number(id),
@@ -98,7 +68,7 @@ export function DetailPage() {
       addRecentLabels(newLabels);
       saveLabels(newLabels);
     },
-    [saveLabels],
+    [setLabels, saveLabels],
   );
 
   const handleToggle = useCallback(() => {

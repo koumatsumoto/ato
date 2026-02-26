@@ -1,27 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GitHubApiError, NotFoundError } from "@/shared/lib/errors";
-import type { GitHubIssue } from "@/features/actions/types";
-
-function makeIssue(overrides: Partial<GitHubIssue> = {}): GitHubIssue {
-  return {
-    number: 1,
-    title: "Test issue",
-    body: "Test body",
-    state: "open",
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-    closed_at: null,
-    html_url: "https://github.com/user/ato-datastore/issues/1",
-    ...overrides,
-  };
-}
+import { TOKEN_KEY } from "@/shared/lib/storage-keys";
+import { makeIssue } from "../../factories";
 
 describe("github-api", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem("ato:token", "test-token");
+    localStorage.setItem(TOKEN_KEY, "test-token");
   });
 
   afterEach(() => {
