@@ -71,7 +71,6 @@ describe("useAuth", () => {
   });
 
   it("recovers from 401 when refresh token is available", async () => {
-    vi.useFakeTimers();
     localStorage.setItem("ato:token", "expired-token");
     localStorage.setItem("ato:refresh-token", "valid-refresh");
 
@@ -88,11 +87,9 @@ describe("useAuth", () => {
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
-    await act(async () => {
-      await vi.runAllTimersAsync();
+    await waitFor(() => {
+      expect(result.current.state.user?.login).toBe("testuser");
     });
-
-    expect(result.current.state.user?.login).toBe("testuser");
     expect(localStorage.getItem("ato:token")).toBe("new-token");
   });
 
