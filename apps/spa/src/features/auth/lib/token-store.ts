@@ -25,6 +25,7 @@ export function setTokenSet(tokenSet: TokenSet): void {
     localStorage.setItem(REFRESH_EXPIRES_AT_KEY, String(tokenSet.refreshExpiresAt));
   }
   authLog("setTokenSet", tokenSet.refreshToken ? "with-refresh" : "access-only");
+  window.dispatchEvent(new Event(TOKEN_REFRESHED_EVENT));
 }
 
 export function getRefreshToken(): string | null {
@@ -32,6 +33,18 @@ export function getRefreshToken(): string | null {
 }
 
 export const TOKEN_CLEARED_EVENT = "ato:token-cleared";
+export const TOKEN_REFRESHED_EVENT = "ato:token-refreshed";
+
+export function clearAccessToken(): void {
+  const hadToken = localStorage.getItem(TOKEN_KEY) !== null;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(EXPIRES_AT_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(REPO_INITIALIZED_KEY);
+  if (!hadToken) return;
+  authLog("clearAccessToken");
+  window.dispatchEvent(new Event(TOKEN_CLEARED_EVENT));
+}
 
 export function clearToken(): void {
   const hadToken = localStorage.getItem(TOKEN_KEY) !== null;

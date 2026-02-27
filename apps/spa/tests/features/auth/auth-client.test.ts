@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { openLoginPopup, refreshAccessToken, LOGIN_TIMEOUT_MS } from "@/features/auth/lib/auth-client";
-import { AuthError } from "@/shared/lib/errors";
+import { AuthError, TokenRefreshError } from "@/shared/lib/errors";
 
 describe("openLoginPopup", () => {
   beforeEach(() => {
@@ -271,15 +271,36 @@ describe("refreshAccessToken", () => {
     });
   });
 
-  it("throws AuthError when response is not ok", async () => {
+  it("throws TokenRefreshError with invalid_grant on 401", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "refresh_failed" }), { status: 401 }));
 
-    await expect(refreshAccessToken("https://proxy.example.com", "bad-token")).rejects.toThrow(AuthError);
+    const error = await refreshAccessToken("https://proxy.example.com", "bad-token").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect(error).toBeInstanceOf(AuthError);
+    expect((error as TokenRefreshError).reason).toBe("invalid_grant");
   });
 
-  it("propagates network errors", async () => {
+  it("throws TokenRefreshError with invalid_grant on 400", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "bad_request" }), { status: 400 }));
+
+    const error = await refreshAccessToken("https://proxy.example.com", "bad-token").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect((error as TokenRefreshError).reason).toBe("invalid_grant");
+  });
+
+  it("throws TokenRefreshError with transient on 500", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("Internal Server Error", { status: 500 }));
+
+    const error = await refreshAccessToken("https://proxy.example.com", "token").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect((error as TokenRefreshError).reason).toBe("transient");
+  });
+
+  it("throws TokenRefreshError with transient on network error", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
 
-    await expect(refreshAccessToken("https://proxy.example.com", "token")).rejects.toThrow(TypeError);
+    const error = await refreshAccessToken("https://proxy.example.com", "token").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect((error as TokenRefreshError).reason).toBe("transient");
   });
 });

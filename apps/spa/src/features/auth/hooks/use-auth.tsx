@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AuthContextValue, AuthState, AuthUser } from "@/features/auth/types";
 import { AuthError, GitHubApiError, NetworkError, RateLimitError } from "@/shared/lib/errors";
-import { getToken, setTokenSet, clearToken, TOKEN_CLEARED_EVENT } from "@/features/auth/lib/token-store";
+import { getToken, setTokenSet, clearToken, TOKEN_CLEARED_EVENT, TOKEN_REFRESHED_EVENT } from "@/features/auth/lib/token-store";
 import { openLoginPopup } from "@/features/auth/lib/auth-client";
 import { githubFetch } from "@/shared/lib/github-client";
 import { getOAuthProxyUrl } from "@/shared/lib/env";
@@ -64,6 +64,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener(TOKEN_CLEARED_EVENT, onTokenCleared);
     return () => window.removeEventListener(TOKEN_CLEARED_EVENT, onTokenCleared);
   }, [queryClient]);
+
+  useEffect(() => {
+    const onTokenRefreshed = () => {
+      const newToken = getToken();
+      authLog("token-refreshed:event", newToken ? "found" : "missing");
+      setTokenState(newToken);
+    };
+    window.addEventListener(TOKEN_REFRESHED_EVENT, onTokenRefreshed);
+    return () => window.removeEventListener(TOKEN_REFRESHED_EVENT, onTokenRefreshed);
+  }, []);
 
   useEffect(() => {
     const onVisibilityChange = () => {

@@ -25,6 +25,10 @@ describe("register-token-refresh", () => {
     return tokenRefresh.getTokenRefreshFn()!;
   }
 
+  async function loadTokenRefreshError() {
+    return (await import("@/shared/lib/errors")).TokenRefreshError;
+  }
+
   it("registers a refresh function on import", async () => {
     const refreshFn = await loadAndGetRefreshFn();
     expect(refreshFn).toBeTypeOf("function");
@@ -63,15 +67,46 @@ describe("register-token-refresh", () => {
     await expect(refreshFn()).rejects.toThrow("No refresh token available");
   });
 
-  it("throws AuthError when refresh endpoint fails", async () => {
+  it("throws TokenRefreshError with invalid_grant when refresh endpoint returns 401", async () => {
     localStorage.setItem(TOKEN_KEY, "old-token");
     localStorage.setItem(REFRESH_TOKEN_KEY, "bad-refresh");
 
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "invalid" }), { status: 401 }));
 
     const refreshFn = await loadAndGetRefreshFn();
+    const TokenRefreshError = await loadTokenRefreshError();
 
-    await expect(refreshFn()).rejects.toThrow("Token refresh failed");
+    const error = await refreshFn().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect((error as InstanceType<typeof TokenRefreshError>).reason).toBe("invalid_grant");
+  });
+
+  it("throws TokenRefreshError with transient when network error occurs during refresh", async () => {
+    localStorage.setItem(TOKEN_KEY, "old-token");
+    localStorage.setItem(REFRESH_TOKEN_KEY, "valid-refresh");
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const refreshFn = await loadAndGetRefreshFn();
+    const TokenRefreshError = await loadTokenRefreshError();
+
+    const error = await refreshFn().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect((error as InstanceType<typeof TokenRefreshError>).reason).toBe("transient");
+  });
+
+  it("throws TokenRefreshError with transient when refresh endpoint returns 500", async () => {
+    localStorage.setItem(TOKEN_KEY, "old-token");
+    localStorage.setItem(REFRESH_TOKEN_KEY, "valid-refresh");
+
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("Internal Server Error", { status: 500 }));
+
+    const refreshFn = await loadAndGetRefreshFn();
+    const TokenRefreshError = await loadTokenRefreshError();
+
+    const error = await refreshFn().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect((error as InstanceType<typeof TokenRefreshError>).reason).toBe("transient");
   });
 
   it("deduplicates concurrent refresh attempts (mutex)", async () => {

@@ -2,6 +2,18 @@ export class AuthError extends Error {
   override readonly name = "AuthError" as const;
 }
 
+export type TokenRefreshFailureReason = "invalid_grant" | "transient";
+
+export class TokenRefreshError extends AuthError {
+  constructor(
+    readonly reason: TokenRefreshFailureReason,
+    message: string,
+    options?: ErrorOptions | undefined,
+  ) {
+    super(message, options);
+  }
+}
+
 export class GitHubApiError extends Error {
   override readonly name = "GitHubApiError" as const;
   constructor(

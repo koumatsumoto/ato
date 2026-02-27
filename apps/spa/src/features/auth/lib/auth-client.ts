@@ -1,5 +1,5 @@
 import type { OAuthMessage, TokenSet } from "@/features/auth/types";
-import { AuthError } from "@/shared/lib/errors";
+import { TokenRefreshError } from "@/shared/lib/errors";
 
 export const LOGIN_TIMEOUT_MS = 120_000;
 const POPUP_POLL_INTERVAL_MS = 500;
@@ -86,14 +86,20 @@ interface RefreshResponse {
 }
 
 export async function refreshAccessToken(proxyUrl: string, refreshToken: string): Promise<TokenSet> {
-  const response = await fetch(`${proxyUrl}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${proxyUrl}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch (err) {
+    throw new TokenRefreshError("transient", "Token refresh failed: network error", { cause: err });
+  }
 
   if (!response.ok) {
-    throw new AuthError("Token refresh failed");
+    const reason = response.status === 400 || response.status === 401 ? "invalid_grant" : "transient";
+    throw new TokenRefreshError(reason, `Token refresh failed: ${response.status}`);
   }
 
   const data: RefreshResponse = await response.json();

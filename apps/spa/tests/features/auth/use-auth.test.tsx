@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { clearToken } from "@/features/auth/lib/token-store";
+import { clearToken, TOKEN_REFRESHED_EVENT } from "@/features/auth/lib/token-store";
 import { createWrapper } from "../../test-utils";
 import "@/features/auth/lib/register-token-refresh";
 
@@ -151,6 +151,28 @@ describe("useAuth", () => {
     expect(localStorage.getItem("ato:token")).toBeNull();
     expect(localStorage.getItem("ato:user")).toBeNull();
     expect(localStorage.getItem("ato:repo-initialized")).toBeNull();
+  });
+
+  it("updates React state when TOKEN_REFRESHED_EVENT is dispatched", async () => {
+    localStorage.setItem("ato:token", "old-token");
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ login: "user", id: 1, avatar_url: "https://example.com/avatar" }), { status: 200 }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.state.user).not.toBeNull();
+    });
+
+    expect(result.current.state.token).toBe("old-token");
+
+    act(() => {
+      localStorage.setItem("ato:token", "refreshed-token");
+      window.dispatchEvent(new Event(TOKEN_REFRESHED_EVENT));
+    });
+
+    expect(result.current.state.token).toBe("refreshed-token");
   });
 
   it("clears state when TOKEN_CLEARED_EVENT is dispatched externally", async () => {

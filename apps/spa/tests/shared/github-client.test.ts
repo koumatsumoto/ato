@@ -162,5 +162,18 @@ describe("githubFetch", () => {
 
       await expect(githubFetch("/user")).rejects.toThrow(AuthError);
     });
+
+    it("throws NetworkError when retry fetch fails with network error after successful refresh", async () => {
+      localStorage.setItem(TOKEN_KEY, "expired-token");
+      registerTokenRefresh(() => Promise.resolve("new-token"));
+
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      globalThis.fetch = mockFetch;
+
+      await expect(githubFetch("/user")).rejects.toThrow(NetworkError);
+    });
   });
 });

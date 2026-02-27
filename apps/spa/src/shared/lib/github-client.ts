@@ -40,15 +40,24 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
     if (!refreshFn) {
       throw new AuthError("Token expired or revoked");
     }
+
+    let newToken: string;
     try {
-      const newToken = await refreshFn();
-      response = await doFetch(path, newToken, options);
-      if (response.status === 401) {
-        throw new AuthError("Token expired after refresh");
-      }
+      newToken = await refreshFn();
     } catch (err) {
       if (err instanceof AuthError) throw err;
       throw new AuthError("Token expired or revoked");
+    }
+
+    try {
+      response = await doFetch(path, newToken, options);
+    } catch {
+      authLog("githubFetch:network-error-after-refresh", path);
+      throw new NetworkError("Unable to connect. Please check your internet connection.");
+    }
+
+    if (response.status === 401) {
+      throw new AuthError("Token expired after refresh");
     }
   }
 
