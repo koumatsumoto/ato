@@ -124,7 +124,7 @@ ato/
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=24.13.0",
     "pnpm": ">=10.0.0"
   },
   "packageManager": "pnpm@10.4.1"

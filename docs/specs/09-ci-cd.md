@@ -8,11 +8,11 @@ GitHub Actions で CI (lint / typecheck / test) と CD (SPA -> GitHub Pages, OAu
 
 ## 1. ワークフロー一覧
 
-| ワークフロー             | トリガー                               | 内容                                  |
-| ------------------------ | -------------------------------------- | ------------------------------------- |
-| `ci.yml`                 | PR / push to main                      | lint, typecheck, test (SPA)           |
-| `deploy-spa.yml`         | push to main (apps/spa 変更時)         | Vite build -> GitHub Pages            |
-| `deploy-oauth-proxy.yml` | push to main (apps/oauth-proxy 変更時) | wrangler deploy -> Cloudflare Workers |
+| ワークフロー             | トリガー                 | 内容                                       |
+| ------------------------ | ------------------------ | ------------------------------------------ |
+| `ci.yml`                 | PR / push to main        | lint, typecheck, test (SPA + OAuth Proxy)  |
+| `deploy-spa.yml`         | CI 完了 (`workflow_run`) | CI success 時に Vite build -> GitHub Pages |
+| `deploy-oauth-proxy.yml` | CI 完了 (`workflow_run`) | CI success 時に wrangler deploy -> Workers |
 
 ---
 
@@ -29,6 +29,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
@@ -39,7 +43,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "24"
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -65,16 +69,30 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "24"
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Run tests
-        run: pnpm test
-
-      - name: Coverage check
+      - name: Run tests with coverage
         run: pnpm --filter @ato/spa test:coverage
+
+  test-oauth-proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        run: pnpm --filter @ato/oauth-proxy test:coverage
 ```
 
 CI は SPA と OAuth Proxy の両方でテストを実行する。
@@ -90,11 +108,10 @@ OAuth Proxy は 80% カバレッジ閾値を vitest.config.ts で強制してい
 name: Deploy SPA
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches: [main]
-    paths:
-      - apps/spa/**
-      - .github/workflows/deploy-spa.yml
+    types: [completed]
 
 permissions:
   contents: read
@@ -107,6 +124,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -115,7 +133,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "24"
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -168,14 +186,17 @@ GitHub Pages の設定:
 name: Deploy OAuth Proxy
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches: [main]
-    paths:
-      - apps/oauth-proxy/**
-      - .github/workflows/deploy-oauth-proxy.yml
+    types: [completed]
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -184,7 +205,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "24"
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -289,7 +310,7 @@ npx wrangler secret put GITHUB_CLIENT_SECRET
 
 1. Repository Secrets に `CLOUDFLARE_API_TOKEN` を設定
 2. Repository Variables に `OAUTH_PROXY_URL` を設定 (例: `https://ato-oauth.{user}.workers.dev`)
-3. main ブランチに push
+3. main へ push (または PR マージ) して CI 成功後にデプロイ実行
 
 ### 8.4 確認
 

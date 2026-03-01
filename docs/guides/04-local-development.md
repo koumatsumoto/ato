@@ -2,7 +2,7 @@
 
 ## 前提条件
 
-- Node.js >= 22.0.0
+- Node.js >= 24.13.0
 - pnpm >= 10.0.0
 - 開発用 GitHub OAuth App 作成済み（→ [01-github-oauth-app.md](./01-github-oauth-app.md)）
 
