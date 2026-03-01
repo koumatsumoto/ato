@@ -12,6 +12,7 @@ async function tryRefresh(): Promise<string> {
 
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
+    authLog("token-refresh:missing-refresh-token");
     throw new AuthError("No refresh token available");
   }
 
@@ -20,12 +21,18 @@ async function tryRefresh(): Promise<string> {
       const proxyUrl = getOAuthProxyUrl();
       const tokenSet = await refreshAccessToken(proxyUrl, refreshToken);
       setTokenSet(tokenSet);
-      authLog("token-refresh:success");
+      authLog("token-refresh:success", tokenSet.refreshToken ? "with-refresh-token" : "access-only");
       return tokenSet.accessToken;
     } catch (err) {
+      if (err instanceof TokenRefreshError) {
+        authLog("token-refresh:failed", `reason=${err.reason} message=${err.message}`);
+        throw err;
+      }
+      if (err instanceof AuthError) {
+        authLog("token-refresh:failed", err.message);
+        throw err;
+      }
       authLog("token-refresh:failed", String(err));
-      if (err instanceof TokenRefreshError) throw err;
-      if (err instanceof AuthError) throw err;
       throw new TokenRefreshError("transient", "Token refresh failed", { cause: err });
     } finally {
       refreshPromise = null;

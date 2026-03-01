@@ -85,6 +85,19 @@ interface RefreshResponse {
   readonly refreshTokenExpiresIn?: number | undefined;
 }
 
+async function readErrorBody(response: Response): Promise<string> {
+  const contentType = response.headers.get("Content-Type") ?? "";
+  try {
+    if (contentType.includes("application/json")) {
+      const data: unknown = await response.json();
+      return JSON.stringify(data).slice(0, 300);
+    }
+    return (await response.text()).slice(0, 300);
+  } catch {
+    return "unreadable-body";
+  }
+}
+
 export async function refreshAccessToken(proxyUrl: string, refreshToken: string): Promise<TokenSet> {
   let response: Response;
   try {
@@ -99,7 +112,8 @@ export async function refreshAccessToken(proxyUrl: string, refreshToken: string)
 
   if (!response.ok) {
     const reason = response.status === 400 || response.status === 401 ? "invalid_grant" : "transient";
-    throw new TokenRefreshError(reason, `Token refresh failed: ${response.status}`);
+    const detail = await readErrorBody(response);
+    throw new TokenRefreshError(reason, `Token refresh failed: status=${response.status} body=${detail}`);
   }
 
   const data: RefreshResponse = await response.json();

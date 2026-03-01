@@ -45,6 +45,8 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
     try {
       newToken = await refreshFn();
     } catch (err) {
+      const detail = err instanceof Error ? `${err.name}:${err.message}` : String(err);
+      authLog("githubFetch:refresh-failed", `${path} ${detail}`);
       if (err instanceof AuthError) throw err;
       throw new AuthError("Token expired or revoked");
     }
@@ -57,6 +59,7 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
     }
 
     if (response.status === 401) {
+      authLog("githubFetch:retry-401", path);
       throw new AuthError("Token expired after refresh");
     }
   }

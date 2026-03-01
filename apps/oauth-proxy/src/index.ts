@@ -11,6 +11,14 @@ interface GitHubTokenResponse {
   readonly refresh_token_expires_in?: number;
 }
 
+function normalizeOrigin(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
 function securityHeaders(): Record<string, string> {
   return {
     "X-Content-Type-Options": "nosniff",
@@ -104,28 +112,28 @@ function handleLogin(url: URL, env: Env): Response {
   });
 }
 
-async function handleCallback(url: URL, request: Request, env: Env): Promise<Response> {
+async function handleCallback(url: URL, request: Request, env: Env, spaOrigin: string): Promise<Response> {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const clearCookie = { "Set-Cookie": clearCookieHeader() };
 
   if (!code || !state) {
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "missing_params" }, clearCookie);
+    return postMessageResponse(spaOrigin, { type: "ato:auth:error", error: "missing_params" }, clearCookie);
   }
 
   const cookies = parseCookies(request.headers.get("Cookie") ?? "");
   if (cookies["oauth_state"] !== state) {
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "invalid_state" }, clearCookie);
+    return postMessageResponse(spaOrigin, { type: "ato:auth:error", error: "invalid_state" }, clearCookie);
   }
 
   try {
     const tokenData = await exchangeToken(env, { code });
     if (!tokenData.access_token) {
-      return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
+      return postMessageResponse(spaOrigin, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
     }
 
     return postMessageResponse(
-      env.SPA_ORIGIN,
+      spaOrigin,
       {
         type: "ato:auth:success",
         accessToken: tokenData.access_token,
@@ -140,32 +148,33 @@ async function handleCallback(url: URL, request: Request, env: Env): Promise<Res
       clearCookie,
     );
   } catch {
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
+    return postMessageResponse(spaOrigin, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
   }
 }
 
-async function handleRefresh(request: Request, env: Env): Promise<Response> {
-  const origin = request.headers.get("Origin");
-  if (origin !== env.SPA_ORIGIN) {
-    return new Response("Forbidden", { status: 403, headers: securityHeaders() });
+async function handleRefresh(request: Request, env: Env, spaOrigin: string): Promise<Response> {
+  const requestOrigin = request.headers.get("Origin");
+  const normalizedRequestOrigin = requestOrigin ? normalizeOrigin(requestOrigin) : null;
+  if (!normalizedRequestOrigin || normalizedRequestOrigin !== spaOrigin) {
+    return Response.json({ error: "forbidden_origin" }, { status: 403, headers: jsonResponseHeaders(spaOrigin) });
   }
 
   let body: { refreshToken?: string };
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "invalid_request" }, { status: 400, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
+    return Response.json({ error: "invalid_request" }, { status: 400, headers: jsonResponseHeaders(spaOrigin) });
   }
 
   if (!body.refreshToken) {
-    return Response.json({ error: "missing_refresh_token" }, { status: 400, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
+    return Response.json({ error: "missing_refresh_token" }, { status: 400, headers: jsonResponseHeaders(spaOrigin) });
   }
 
   try {
     const tokenData = await exchangeToken(env, { grant_type: "refresh_token", refresh_token: body.refreshToken });
 
     if (!tokenData.access_token) {
-      return Response.json({ error: "refresh_failed" }, { status: 401, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
+      return Response.json({ error: "refresh_failed" }, { status: 401, headers: jsonResponseHeaders(spaOrigin) });
     }
 
     return Response.json(
@@ -175,21 +184,25 @@ async function handleRefresh(request: Request, env: Env): Promise<Response> {
         expiresIn: tokenData.expires_in,
         refreshTokenExpiresIn: tokenData.refresh_token_expires_in,
       },
-      { status: 200, headers: jsonResponseHeaders(env.SPA_ORIGIN) },
+      { status: 200, headers: jsonResponseHeaders(spaOrigin) },
     );
   } catch {
-    return Response.json({ error: "refresh_failed" }, { status: 502, headers: jsonResponseHeaders(env.SPA_ORIGIN) });
+    return Response.json({ error: "refresh_failed" }, { status: 502, headers: jsonResponseHeaders(spaOrigin) });
   }
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const spaOrigin = normalizeOrigin(env.SPA_ORIGIN);
+    if (!spaOrigin) {
+      return new Response("Invalid SPA_ORIGIN", { status: 500, headers: securityHeaders() });
+    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
-        headers: jsonResponseHeaders(env.SPA_ORIGIN),
+        headers: jsonResponseHeaders(spaOrigin),
       });
     }
 
@@ -198,11 +211,11 @@ export default {
     }
 
     if (url.pathname === "/auth/callback" && request.method === "GET") {
-      return handleCallback(url, request, env);
+      return handleCallback(url, request, env, spaOrigin);
     }
 
     if (url.pathname === "/auth/refresh" && request.method === "POST") {
-      return handleRefresh(request, env);
+      return handleRefresh(request, env, spaOrigin);
     }
 
     if (url.pathname === "/auth/health") {

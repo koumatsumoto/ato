@@ -370,6 +370,22 @@ describe("OAuth Proxy Worker", () => {
       const response = await worker.fetch(createRefreshRequest({ refreshToken: "ghr_test" }, "https://evil.com"), TEST_ENV);
 
       expect(response.status).toBe(403);
+      const data = (await response.json()) as { error: string };
+      expect(data.error).toBe("forbidden_origin");
+    });
+
+    it("accepts Origin when SPA_ORIGIN includes path and trailing slash", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "gho_new" }), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      const envWithPath = { ...TEST_ENV, SPA_ORIGIN: "https://koumatsumoto.github.io/ato/" };
+
+      const response = await worker.fetch(createRefreshRequest({ refreshToken: "ghr_test" }, "https://koumatsumoto.github.io"), envWithPath);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://koumatsumoto.github.io");
     });
 
     it("returns 400 for invalid JSON body", async () => {
