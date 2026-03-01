@@ -2,224 +2,132 @@
 
 ## 概要
 
-ATO は独自の DB を持たない。TODO データは GitHub Issues に保存する。
-認証トークンとキャッシュは SPA の localStorage に保存する。
+ATO はアプリ専用 DB を持たず、GitHub Issues を永続化層として利用する。
+SPA 内部では `Action` 型を使い、GitHub API 境界で変換する。
 
 ---
 
-## 1. TODO データ (GitHub Issue マッピング)
+## 1. Action モデル
 
-### 1.1 Todo 型定義
+### 1.1 SPA 内部型
 
-```typescript
-/** SPA 内部の Todo 型 (apps/spa/src/types/todo.ts) */
-interface Todo {
-  readonly id: number; // GitHub Issue number (#1, #2, ...)
-  readonly title: string; // Issue title (1-256 文字)
-  readonly body: string; // Issue body (プレーンテキスト、0-65536 文字)
-  readonly state: "open" | "closed";
-  readonly createdAt: string; // ISO 8601
-  readonly updatedAt: string; // ISO 8601
-  readonly closedAt: string | null;
-  readonly url: string; // GitHub Issue URL
-}
-```
-
-### 1.2 フィールドマッピング
-
-| Todo        | GitHub Issue | 備考                                              |
-| ----------- | ------------ | ------------------------------------------------- |
-| `id`        | `number`     | Issue 番号。リポジトリ内で一意                    |
-| `title`     | `title`      | 必須。1-256 文字                                  |
-| `body`      | `body`       | 任意。プレーンテキスト。null の場合は空文字に変換 |
-| `state`     | `state`      | `"open"` = 未完了、`"closed"` = 完了              |
-| `createdAt` | `created_at` | ISO 8601                                          |
-| `updatedAt` | `updated_at` | ISO 8601。並び順のキー                            |
-| `closedAt`  | `closed_at`  | 完了日時。open の場合 null                        |
-| `url`       | `html_url`   | GitHub 上の Issue ページ URL                      |
-
-### 1.3 GitHub Issue -> Todo 変換
+`apps/spa/src/features/actions/types.ts`
 
 ```typescript
-// SPA: features/todos/lib/issue-mapper.ts
-function mapIssueToTodo(issue: GitHubIssue): Todo {
-  return {
-    id: issue.number,
-    title: issue.title,
-    body: issue.body ?? "",
-    state: issue.state as "open" | "closed",
-    createdAt: issue.created_at,
-    updatedAt: issue.updated_at,
-    closedAt: issue.closed_at,
-    url: issue.html_url,
-  };
-}
-```
-
-### 1.4 入力型
-
-```typescript
-/** TODO 作成 */
-interface CreateTodoInput {
-  readonly title: string; // 必須、1-256 文字
-  readonly body?: string; // 任意、0-65536 文字
-}
-
-/** TODO 更新 */
-interface UpdateTodoInput {
-  readonly title?: string; // 1-256 文字
-  readonly body?: string; // 0-65536 文字
-}
-// title と body のどちらか一方は必須
-```
-
----
-
-## 2. GitHub API レスポンス型
-
-SPA が GitHub REST API を直接呼び出すため、GitHub のレスポンス型を定義する。
-
-```typescript
-// apps/spa/src/types/github.ts
-
-/** GitHub Issue (REST API レスポンス) */
-interface GitHubIssue {
-  readonly number: number;
-  readonly title: string;
-  readonly body: string | null;
-  readonly state: string;
-  readonly created_at: string;
-  readonly updated_at: string;
-  readonly closed_at: string | null;
-  readonly html_url: string;
-  readonly pull_request?: unknown; // PR の場合のみ存在
-}
-
-/** GitHub User (REST API レスポンス) */
-interface GitHubUser {
-  readonly login: string;
+interface Action {
   readonly id: number;
-  readonly avatar_url: string;
+  readonly title: string;
+  readonly memo: string;
+  readonly state: "open" | "closed";
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly closedAt: string | null;
+  readonly url: string;
+  readonly labels: readonly string[];
+}
+```
+
+### 1.2 GitHub Issue との対応
+
+| Action      | GitHub Issue    | 備考                |
+| ----------- | --------------- | ------------------- |
+| `id`        | `number`        | Issue 番号          |
+| `title`     | `title`         | 1-256               |
+| `memo`      | `body`          | null は空文字へ変換 |
+| `state`     | `state`         | `open` / `closed`   |
+| `createdAt` | `created_at`    | ISO 8601            |
+| `updatedAt` | `updated_at`    | ISO 8601            |
+| `closedAt`  | `closed_at`     | null 許容           |
+| `url`       | `html_url`      | GitHub Issue URL    |
+| `labels`    | `labels[].name` | string 配列に投影   |
+
+---
+
+## 2. 入力型
+
+```typescript
+interface CreateActionInput {
+  readonly title: string;
+  readonly memo?: string;
+  readonly labels?: readonly string[];
 }
 
-/** GitHub Repository (REST API レスポンス) */
-interface GitHubRepository {
-  readonly full_name: string;
-  readonly private: boolean;
-  readonly has_issues: boolean;
+interface UpdateActionInput {
+  readonly title?: string;
+  readonly memo?: string;
+  readonly state?: "open" | "closed";
+  readonly state_reason?: "completed" | "reopened" | "not_planned";
+  readonly labels?: readonly string[];
 }
 ```
 
 ---
 
-## 3. 認証関連型
+## 3. GitHub API レスポンス型
 
-```typescript
-// apps/spa/src/types/auth.ts
+主要型:
 
-/** ユーザー情報 (SPA 内部表現) */
-interface AuthUser {
-  readonly login: string; // GitHub ユーザー名
-  readonly id: number; // GitHub ユーザー ID
-  readonly avatarUrl: string; // アバター URL
-}
-```
+- `GitHubIssue`
+- `GitHubLabel`
+- `GitHubRepository`
+- `GitHubSearchResult`
+
+定義: `apps/spa/src/features/actions/types.ts`
 
 ---
 
 ## 4. localStorage スキーマ
 
-| キー                   | 値の型   | 説明                         | 設定タイミング      |
-| ---------------------- | -------- | ---------------------------- | ------------------- |
-| `ato:token`            | `string` | GitHub access_token          | OAuth 認証成功時    |
-| `ato:user`             | `JSON`   | AuthUser のキャッシュ (任意) | ユーザー情報取得時  |
-| `ato:repo-initialized` | `"true"` | リポジトリ存在確認済みフラグ | リポ確認/作成成功時 |
+### 4.1 認証関連
 
-ログアウト時は上記 3 キーを全て削除する。
+| Key                      | 型             | 用途                          |
+| ------------------------ | -------------- | ----------------------------- |
+| `ato:token`              | string         | access token                  |
+| `ato:refresh-token`      | string         | refresh token                 |
+| `ato:token-expires-at`   | string(number) | access token 期限 (ms epoch)  |
+| `ato:refresh-expires-at` | string(number) | refresh token 期限 (ms epoch) |
+| `ato:user`               | string         | 予約キー (現実装では未利用)   |
 
----
+### 4.2 リポジトリ状態
 
-## 5. リポジトリ自動作成
+| Key                    | 型       | 用途                               |
+| ---------------------- | -------- | ---------------------------------- |
+| `ato:repo-initialized` | `"true"` | `ato-datastore` 存在確認済みフラグ |
 
-### 5.1 概要
+### 4.3 下書き・補助情報
 
-ユーザーが初めて TODO 操作を行う際、`ato-datastore` リポジトリが存在しない場合は SPA が自動作成する。
-
-### 5.2 フロー
-
-```text
-認証済みリクエスト (SPA -> GitHub API)
-  |
-  v
-localStorage "ato:repo-initialized" を確認
-  |
-  +-- "true" --> そのまま処理続行
-  |
-  +-- 未設定 --> GitHub API で確認
-       |
-       +-- GET /repos/{login}/ato-datastore
-       |
-       +-- 200 (存在する) --> localStorage にキャッシュ --> 処理続行
-       |
-       +-- 404 (存在しない) --> リポジトリ作成
-            |
-            POST /user/repos
-            {
-              name: "ato-datastore",
-              private: true,
-              description: "Data store for ATO app",
-              auto_init: true,
-              has_issues: true,
-              has_projects: false,
-              has_wiki: false
-            }
-            |
-            +-- 201 --> localStorage にキャッシュ --> 処理続行
-            +-- 422 (既存) --> 成功として扱い、キャッシュ
-            +-- その他エラー --> エラー表示
-```
-
-### 5.3 リポジトリ設定
-
-| 設定           | 値                         | 理由                              |
-| -------------- | -------------------------- | --------------------------------- |
-| `name`         | `"ato-datastore"`          | 固定名。ユーザーごとに 1 つ       |
-| `private`      | `true`                     | TODO データを非公開にする         |
-| `auto_init`    | `true`                     | README.md を自動生成 (空リポ回避) |
-| `has_issues`   | `true`                     | Issue が必須                      |
-| `has_projects` | `false`                    | 不要な機能を無効化                |
-| `has_wiki`     | `false`                    | 不要な機能を無効化                |
-| `description`  | `"Data store for ATO app"` | リポジトリの用途を明示            |
+| Key prefix          | 型             | 用途                        |
+| ------------------- | -------------- | --------------------------- |
+| `ato:draft:{id}`    | JSON           | Detail 画面の自動保存下書き |
+| `ato:recent-labels` | JSON(string[]) | 最近使ったラベル候補        |
 
 ---
 
-## 6. GitHub API レート制限
+## 5. リポジトリ存在チェック
 
-| 項目                             | 値                        |
-| -------------------------------- | ------------------------- |
-| 認証済みリクエスト上限           | 5,000 回/時               |
-| 1 TODO 操作あたりの API 呼び出し | 1 回                      |
-| 一覧取得                         | 1 回                      |
-| リポジトリ初期化                 | 1-2 回 (キャッシュ後は 0) |
+`ensureRepository(login)`:
 
-個人利用であれば、レート制限に達することはほぼない。
-SPA は GitHub API レスポンスの `X-RateLimit-Remaining` ヘッダーを読み取り、残り少ない場合に警告を表示する。
+1. `ato:repo-initialized` が `true` なら終了
+2. `GET /repos/{login}/ato-datastore`
+3. 200 ならフラグ保存
+4. 404 なら `RepoNotConfiguredError`
+
+リポジトリ自動作成は行わない。
 
 ---
 
-## 7. ページネーション
+## 6. ページネーション
 
-GitHub Issues API はページベースのページネーション (`Link` ヘッダー) を採用。
-SPA が `Link` ヘッダーを解析し、次ページの有無と番号を取得する。
+open/closed 一覧は Issues API の `Link` ヘッダーを解析し、
+`hasNextPage` / `nextPage` を返す。
 
-```text
-GitHub Link ヘッダー:
-  <...?page=2>; rel="next", <...?page=5>; rel="last"
+---
 
-SPA が解析:
-  hasNextPage: true
-  nextPage: 2
-```
+## 7. レート制限
 
-TanStack Query の `useInfiniteQuery` と組み合わせ、
-`getNextPageParam` で次ページ番号を返すことで「Load more」ボタンを実現する。
+`githubFetch` で以下をレート制限として扱う。
+
+- `429`
+- `403` かつ `X-RateLimit-Remaining: 0`
+
+`RateLimitError(resetAt)` を投げて UI 側へ伝播する。

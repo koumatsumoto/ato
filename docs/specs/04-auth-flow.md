@@ -2,314 +2,131 @@
 
 ## 概要
 
-GitHub App を使用した認証。SPA と OAuth Proxy が別オリジンのため、popup + postMessage パターンを採用する。
-access_token は SPA の localStorage に保存し、SPA から GitHub API を直接呼び出す。
-トークンは無期限（Expire user authorization tokens: 無効）。
+ATO の認証は GitHub 認可画面を popup で開く方式を採用する。
+OAuth Proxy が code/token 交換を担い、SPA は GitHub API を直接呼び出す。
 
-> 移行の背景と詳細は [11-github-app-migration.md](./11-github-app-migration.md) を参照。
+- SPA と OAuth Proxy は別オリジン
+- postMessage で token 情報を返却
+- access token / refresh token は SPA の `localStorage` に保持
 
 ---
 
-## 1. OAuth フロー シーケンス図
+## 1. ログインフロー
 
 ```text
-SPA (*.github.io)              OAuth Proxy (CF Workers)         GitHub
-     |                              |                              |
-     |  (1) window.open             |                              |
-     |----> GET /auth/login ------->|                              |
-     |                              |                              |
-     |                              |  (2) state 生成              |
-     |                              |  HttpOnly Cookie に保存      |
-     |                              |                              |
-     |                              |  (3) 302 Redirect            |
-     |                              |----> github.com/login/ ----->|
-     |                              |      oauth/authorize         |
-     |                              |      ?client_id=Iv23li...    |
-     |                              |      &redirect_uri=.../callback
-     |                              |      &state={random}         |
-     |                              |                              |
-     |                              |              ユーザー認可    |
-     |                              |              (App 権限表示)  |
-     |                              |                              |
-     |                              |  (4) GitHub redirect         |
-     |                              |<---- GET /auth/callback -----|
-     |                              |      ?code=...&state=...     |
-     |                              |                              |
-     |                              |  (5) Cookie の state 検証     |
-     |                              |                              |
-     |                              |  (6) code -> token 交換      |
-     |                              |----> POST .../access_token ->|
-     |                              |      { client_id,            |
-     |                              |        client_secret, code } |
-     |                              |                              |
-     |                              |<---- { access_token } -------|
-     |                              |                              |
-     |  (7) HTML + postMessage      |                              |
-     |<---- { type, accessToken } --|                              |
-     |                              |                              |
-     |  (8) localStorage に保存     |                              |
-     |  (9) popup を閉じる          |                              |
+SPA                        OAuth Proxy                    GitHub
+ |                             |                           |
+ | window.open(/auth/login)    |                           |
+ |---------------------------->|                           |
+ |                             | state生成 + Cookie保存     |
+ |                             | 302 authorize             |
+ |                             |-------------------------->|
+ |                             |                           | 認可
+ |                             |<--------------------------|
+ |                             | /auth/callback?code&state |
+ |                             | state検証 + token交換      |
+ |<----------------------------| postMessage(type=success) |
+ | token保存                    |                           |
+ | GET /user                   |                           |
+ |-----------------------------> api.github.com            |
 ```
 
 ---
 
-## 2. 各ステップ詳細
+## 2. SPA 側実装ポイント
 
-### Step 1: SPA がログインを開始
+### 2.1 popup 起動と受信
 
-SPA は popup ウィンドウで OAuth Proxy の `/auth/login` を開く。
+`openLoginPopup(proxyUrl)` の流れ:
 
-```typescript
-// SPA 側
-function openLoginPopup() {
-  const proxyUrl = import.meta.env.VITE_OAUTH_PROXY_URL;
-  const url = `${proxyUrl}/auth/login`;
+- `window.open("{proxyUrl}/auth/login")`
+- `message` イベントで `event.origin === new URL(proxyUrl).origin` を検証
+- `type === "ato:auth:success"` で token 情報を返す
+- popup close / timeout / 手動 close をハンドリング
 
-  const popup = window.open(url, "ato-login", "width=600,height=700");
+### 2.2 token 保存
 
-  // postMessage を待機
-  const handler = (event: MessageEvent) => {
-    if (event.origin !== proxyUrl) return;
-    if (event.data?.type === "ato:auth:success") {
-      localStorage.setItem("ato:token", event.data.accessToken);
-      window.removeEventListener("message", handler);
-      popup?.close();
-      // 認証状態を更新
-    }
-    if (event.data?.type === "ato:auth:error") {
-      window.removeEventListener("message", handler);
-      popup?.close();
-      // エラー表示
-    }
-  };
-  window.addEventListener("message", handler);
-}
-```
+`setTokenSet()` が以下を保存する。
 
-### Step 2-3: OAuth Proxy が state を生成し GitHub へリダイレクト
+- `ato:token`
+- `ato:refresh-token` (存在時)
+- `ato:token-expires-at` (存在時)
+- `ato:refresh-expires-at` (存在時)
 
-```typescript
-// OAuth Proxy: GET /auth/login
-function handleLogin(url: URL, env: Env): Response {
-  const state = crypto.randomUUID();
-  const params = new URLSearchParams({
-    client_id: env.GITHUB_CLIENT_ID,
-    redirect_uri: `${url.origin}/auth/callback`,
-    state,
-    // GitHub App では scope パラメータ不要
-  });
+### 2.3 認証状態
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: `https://github.com/login/oauth/authorize?${params}`,
-      "Set-Cookie": `oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
-    },
-  });
-}
-```
+`AuthProvider`:
 
-**GitHub App パーミッション:**
-
-- Issues: Read & Write（App 登録時に定義済み）
-- Metadata: Read-only（自動付与）
-
-### Step 4-5: コールバックで state を検証
-
-```typescript
-// OAuth Proxy: GET /auth/callback
-// Cookie から state を読み取り、query の state と比較
-const cookies = parseCookies(request.headers.get("Cookie") ?? "");
-if (cookies.oauth_state !== state) {
-  return postMessageResponse(env.SPA_ORIGIN, {
-    type: "ato:auth:error",
-    error: "invalid_state",
-  });
-}
-// Cookie をクリア (ワンタイム使用)
-```
-
-### Step 6: code を access_token に交換
-
-```typescript
-// OAuth Proxy: code -> token 交換
-const response = await fetch("https://github.com/login/oauth/access_token", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-  body: JSON.stringify({
-    client_id: env.GITHUB_CLIENT_ID,
-    client_secret: env.GITHUB_CLIENT_SECRET,
-    code,
-  }),
-});
-const { access_token } = await response.json();
-```
-
-### Step 7: postMessage で SPA に access_token を返却
-
-```typescript
-// OAuth Proxy: HTML レスポンスを返却
-return new Response(
-  `<!DOCTYPE html>
-  <html>
-  <body>
-    <p>Logging in...</p>
-    <script>
-      if (window.opener) {
-        window.opener.postMessage(
-          { type: "ato:auth:success", accessToken: "${access_token}" },
-          "${env.SPA_ORIGIN}"
-        );
-      }
-      window.close();
-    </script>
-  </body>
-  </html>`,
-  { headers: { "Content-Type": "text/html" } },
-);
-```
+- 起動時に `ato:token` を読み込み
+- token がある場合のみ `/user` を取得
+- `TOKEN_CLEARED_EVENT` / `TOKEN_REFRESHED_EVENT` を監視して state を同期
 
 ---
 
-## 3. トークンライフサイクル
+## 3. 失効時のリフレッシュフロー
 
-### 3.1 トークン仕様
+`githubFetch()` の処理:
 
-| 項目       | 仕様                                                          |
-| ---------- | ------------------------------------------------------------- |
-| 形式       | GitHub App user access token (`ghu_` プレフィックス)          |
-| SPA 保存先 | `localStorage` key: `"ato:token"`                             |
-| 送信方法   | GitHub API への `Authorization: Bearer {token}` ヘッダー      |
-| 有効期限   | 無期限 (Expire user tokens: 無効。ユーザーが取り消すまで有効) |
+1. API 呼び出し
+2. 401 の場合、登録済み refresh 関数を実行
+3. refresh 成功なら新 token で再試行
+4. 再試行でも 401 の場合は `AuthError`
 
-### 3.2 トークン無効化の検知
+refresh 関数 (`register-token-refresh.ts`):
 
-GitHub API が 401 を返した場合、token が取り消されたと判断する。
-
-```text
-SPA: GitHub API 呼び出し
-  -> 401 Unauthorized
-  -> localStorage から token をクリア
-  -> ログイン画面へ遷移
-  -> ユーザーが再ログイン (既に認可済みなら GitHub は即座にリダイレクト)
-```
+- `ato:refresh-token` が無い場合は失敗
+- `/auth/refresh` を呼び出し
+- 成功時に `setTokenSet()` で更新
+- 同時 refresh は `refreshPromise` で 1 本化
 
 ---
 
-## 4. SPA 側の認証状態管理
+## 4. OAuth Proxy 側処理
 
-### 4.1 AuthContext
+### 4.1 `/auth/login`
 
-```typescript
-interface AuthState {
-  readonly token: string | null;
-  readonly user: AuthUser | null;
-  readonly isLoading: boolean;
-}
+- `oauth_state` Cookie を 10 分で発行
+- `redirect_uri={proxyOrigin}/auth/callback`
 
-// AuthProvider が提供する値
-interface AuthContextValue {
-  readonly state: AuthState;
-  readonly login: () => void; // popup を開く
-  readonly logout: () => void; // token クリア (クライアント側のみ)
-}
-```
+### 4.2 `/auth/callback`
 
-### 4.2 初期化フロー
+- `code` と `state` を検証
+- Cookie state と照合
+- token endpoint 呼び出し
+- HTML + `postMessage` 応答
 
-```text
-アプリ起動
-  |
-  v
-localStorage から token を読み取り
-  |
-  +-- token なし --> ログインページ表示
-  |
-  +-- token あり --> GET https://api.github.com/user で検証
-       |
-       +-- 200 --> 認証済み状態に遷移、メイン画面表示
-       +-- 401 --> token をクリア、ログインページ表示
-```
+### 4.3 `/auth/refresh`
 
-### 4.3 GitHub API リクエストへのトークン付与
-
-```typescript
-// shared/lib/github-client.ts
-const GITHUB_API = "https://api.github.com";
-
-async function githubFetch(path: string, options?: RequestInit): Promise<Response> {
-  const token = localStorage.getItem("ato:token");
-  if (!token) {
-    throw new AuthError("Not authenticated");
-  }
-
-  const response = await fetch(`${GITHUB_API}${path}`, {
-    ...options,
-    headers: {
-      ...options?.headers,
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
-
-  if (response.status === 401) {
-    localStorage.removeItem("ato:token");
-    throw new AuthError("Token expired or revoked");
-  }
-
-  return response;
-}
-```
+- `Origin` 検証 (`SPA_ORIGIN` と一致必須)
+- `refreshToken` を受けて token endpoint 呼び出し
+- `accessToken` を JSON で返却
 
 ---
 
-## 5. ログアウト
+## 5. エラーシナリオ
 
-ログアウトは完全にクライアント側で完結する。サーバー呼び出しは不要。
+### 5.1 login/callback
 
-```text
-SPA:
-  1. localStorage から "ato:token" を削除
-  2. localStorage から "ato:user" を削除 (キャッシュ)
-  3. localStorage から "ato:repo-initialized" を削除
-  4. TanStack Query のキャッシュをクリア
-  5. ログインページへ遷移
-```
+| 条件            | SPA に返るエラー        |
+| --------------- | ----------------------- |
+| code/state 欠落 | `missing_params`        |
+| state 不一致    | `invalid_state`         |
+| token 交換失敗  | `token_exchange_failed` |
 
----
+### 5.2 refresh
 
-## 6. セキュリティ考慮事項
-
-| 脅威                   | 対策                                                                                                     |
-| ---------------------- | -------------------------------------------------------------------------------------------------------- |
-| CSRF (OAuth フロー)    | `state` パラメータ + HttpOnly Cookie で検証                                                              |
-| トークン漏洩 (XSS)     | CSP ヘッダーで軽減。localStorage のリスクは許容                                                          |
-| postMessage なりすまし | オリジン検証 (`event.origin` チェック)                                                                   |
-| token 窃取             | access_token は localStorage に保存 (XSS リスク)。権限が Issues のみに限定されているため影響範囲は限定的 |
-
-詳細は [08-security.md](./08-security.md) を参照。
+| 条件              | HTTP    | エラー                  |
+| ----------------- | ------- | ----------------------- |
+| Origin 不正       | 403     | `forbidden_origin`      |
+| JSON 不正         | 400     | `invalid_request`       |
+| refreshToken 欠落 | 400     | `missing_refresh_token` |
+| token 交換失敗    | 401/502 | `refresh_failed`        |
 
 ---
 
-## 7. 開発環境での認証
+## 6. 開発環境
 
-開発時は OAuth Proxy をローカルで起動 (`npx wrangler dev`) する。
-SPA の Vite proxy で `/auth` を OAuth Proxy に転送。
-
-```typescript
-// vite.config.ts
-export default defineConfig({
-  server: {
-    proxy: {
-      "/auth": "http://localhost:8787", // wrangler dev のデフォルトポート
-    },
-  },
-});
-```
-
-GitHub App の設定で Callback URL に `http://localhost:8787/auth/callback` を追加する。
-GitHub App は複数の Callback URL を登録可能（最大 10 個）。
+- SPA: `http://localhost:5173`
+- OAuth Proxy: `http://localhost:8787`
+- `VITE_OAUTH_PROXY_URL=http://localhost:8787`
+- GitHub App callback URL (開発): `http://localhost:8787/auth/callback`

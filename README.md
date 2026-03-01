@@ -20,7 +20,7 @@
 git clone <repo-url> && cd ato
 pnpm install
 cp apps/oauth-proxy/.dev.vars.example apps/oauth-proxy/.dev.vars
-# .dev.vars を編集: GitHub OAuth App の設定値を入力
+# .dev.vars を編集: GitHub App の設定値を入力
 ```
 
 ## 開発コマンド

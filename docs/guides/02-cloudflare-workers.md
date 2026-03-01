@@ -2,95 +2,77 @@
 
 ## 概要
 
-OAuth Proxy を Cloudflare Workers にデプロイする。API トークンの作成、初回デプロイ、Secrets の設定を行う。
+`apps/oauth-proxy` を Cloudflare Workers にデプロイする手順。
 
 ---
 
-## 手順
+## 1. API トークン作成
 
-### 1. Cloudflare アカウント作成
+Cloudflare Dashboard > My Profile > API Tokens > Create Token
 
-未所持の場合: <https://dash.cloudflare.com/sign-up> でアカウントを作成。Free プランで十分。
+推奨テンプレート: `Edit Cloudflare Workers`
 
-### 2. API トークン作成
+必要な主な権限:
 
-Cloudflare Dashboard > My Profile > API Tokens > "Create Token"
+- Account: Workers Scripts (Edit)
+- Account: Account Settings (Read)
+- Zone: Workers Routes (Edit)
 
-1. テンプレート "Edit Cloudflare Workers" の "Use Template" をクリック
-2. 付与される権限:
-   - Account: Workers Scripts (Edit)
-   - Account: Account Settings (Read)
-   - Zone: Workers Routes (Edit)
-3. アカウントリソースを自分のアカウントのみに制限
-4. "Continue to summary" > "Create Token"
-5. トークンを控える（再表示不可）
+このトークンは GitHub Actions Secret `CLOUDFLARE_API_TOKEN` にも登録する。
 
-このトークンは GitHub Actions の `CLOUDFLARE_API_TOKEN` Secret にも使う（→ [03-github-repository.md](./03-github-repository.md)）。
+---
 
-### 3. wrangler.toml の SPA_ORIGIN を編集
+## 2. `wrangler.toml` 設定
 
-`apps/oauth-proxy/wrangler.toml` のプレースホルダーを実際の値に変更:
+`apps/oauth-proxy/wrangler.toml`:
 
 ```toml
 [vars]
-SPA_ORIGIN = "https://<GitHub ユーザー名>.github.io"
+SPA_ORIGIN = "https://<GitHubユーザー名>.github.io"
 ```
 
-### 4. 初回デプロイ
+`SPA_ORIGIN` は refresh endpoint の Origin 検証に使われるため、実際の Pages origin と一致させる。
+
+---
+
+## 3. 初回デプロイ
 
 ```bash
 cd apps/oauth-proxy
 npx wrangler deploy
 ```
 
-初回実行時に Cloudflare ログインを求められる場合がある。Workers プロジェクト `ato-oauth` が自動作成される。
-
-#### WSL 環境での認証
-
-WSL ではブラウザからの OAuth コールバックが WSL 内のプロセスに到達できないため、対話的ログインが失敗する。手順 2 で作成した API トークンを環境変数に設定して回避する:
+必要に応じて `CLOUDFLARE_API_TOKEN` 環境変数で非対話デプロイする。
 
 ```bash
-export CLOUDFLARE_API_TOKEN=<手順 2 で控えたトークン>
+export CLOUDFLARE_API_TOKEN=<token>
 npx wrangler deploy
 ```
 
-永続化する場合は `~/.bashrc` に追加:
+---
 
-```bash
-echo 'export CLOUDFLARE_API_TOKEN=<トークン>' >> ~/.bashrc
-source ~/.bashrc
-```
+## 4. Secrets 設定
 
-この環境変数は `wrangler deploy` および `wrangler secret put` の両方で有効。
-
-### 5. Secrets 設定
-
-本番用の GitHub OAuth App の認証情報を設定:
+GitHub App の Client 情報を Workers Secrets に設定する。
 
 ```bash
 npx wrangler secret put GITHUB_CLIENT_ID
-# プロンプトに本番用 Client ID を入力
-
 npx wrangler secret put GITHUB_CLIENT_SECRET
-# プロンプトに本番用 Client Secret を入力
 ```
-
-### 6. 動作確認
-
-ブラウザで以下にアクセス:
-
-```text
-https://ato-oauth.<CF アカウント名>.workers.dev/auth/login
-```
-
-GitHub の認可画面にリダイレクトされれば成功。
 
 ---
 
-## 環境変数一覧
+## 5. 動作確認
 
-| 名前                   | 種別     | 設定方法          | 説明                    |
-| ---------------------- | -------- | ----------------- | ----------------------- |
-| `SPA_ORIGIN`           | Variable | wrangler.toml     | SPA のオリジン          |
-| `GITHUB_CLIENT_ID`     | Secret   | `wrangler secret` | OAuth App Client ID     |
-| `GITHUB_CLIENT_SECRET` | Secret   | `wrangler secret` | OAuth App Client Secret |
+- `https://ato-oauth.<subdomain>.workers.dev/auth/health` が `OK`
+- `https://ato-oauth.<subdomain>.workers.dev/auth/login` で GitHub 認可画面へ遷移
+
+---
+
+## 6. 変数一覧
+
+| 名前                   | 種別     | 用途                            |
+| ---------------------- | -------- | ------------------------------- |
+| `GITHUB_CLIENT_ID`     | Secret   | token 交換クライアント ID       |
+| `GITHUB_CLIENT_SECRET` | Secret   | token 交換クライアント Secret   |
+| `SPA_ORIGIN`           | Variable | CORS / postMessage 許可オリジン |

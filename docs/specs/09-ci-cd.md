@@ -238,11 +238,11 @@ jobs:
 
 ### 5.2 Cloudflare Workers (Secrets / Variables)
 
-| 名前                   | 種別     | 用途                    | 例                         |
-| ---------------------- | -------- | ----------------------- | -------------------------- |
-| `GITHUB_CLIENT_ID`     | Secret   | OAuth App Client ID     | `Iv1.abc123...`            |
-| `GITHUB_CLIENT_SECRET` | Secret   | OAuth App Client Secret | `secret_...`               |
-| `SPA_ORIGIN`           | Variable | CORS 許可 + postMessage | `https://{user}.github.io` |
+| 名前                   | 種別     | 用途                     | 例                         |
+| ---------------------- | -------- | ------------------------ | -------------------------- |
+| `GITHUB_CLIENT_ID`     | Secret   | GitHub App Client ID     | `Iv23li...`                |
+| `GITHUB_CLIENT_SECRET` | Secret   | GitHub App Client Secret | `secret_...`               |
+| `SPA_ORIGIN`           | Variable | CORS 許可 + postMessage  | `https://{user}.github.io` |
 
 設定方法:
 
@@ -257,17 +257,17 @@ wrangler secret put GITHUB_CLIENT_SECRET
 
 ---
 
-## 6. GitHub OAuth App 設定
+## 6. GitHub App 設定
 
-GitHub Settings > Developer settings > OAuth Apps で作成。
+GitHub Settings > Developer settings > GitHub Apps で作成。
 
-| 項目                       | 開発                                  | 本番                                                 |
-| -------------------------- | ------------------------------------- | ---------------------------------------------------- |
-| Application name           | ATO (dev)                             | ATO                                                  |
-| Homepage URL               | `http://localhost:5173`               | `https://{user}.github.io/ato`                       |
-| Authorization callback URL | `http://localhost:8787/auth/callback` | `https://ato-oauth.{user}.workers.dev/auth/callback` |
+| 項目         | 開発                                  | 本番                                                 |
+| ------------ | ------------------------------------- | ---------------------------------------------------- |
+| App name     | ATO (dev)                             | ATO                                                  |
+| Homepage URL | `http://localhost:5173`               | `https://{user}.github.io/ato`                       |
+| Callback URL | `http://localhost:8787/auth/callback` | `https://ato-oauth.{user}.workers.dev/auth/callback` |
 
-開発用と本番用で別の OAuth App を作成する。
+開発用と本番用で別 App を用意する（または Callback URL 運用を分離する）。
 
 ---
 
@@ -290,7 +290,7 @@ GitHub Settings > Developer settings > OAuth Apps で作成。
 
 ### 8.1 事前準備
 
-1. GitHub OAuth App を作成 (開発用 + 本番用)
+1. GitHub App を作成 (開発用 + 本番用)
 2. Cloudflare アカウントで API トークンを作成 (Workers 編集権限)
 3. GitHub リポジトリの Settings > Pages で Source を "GitHub Actions" に設定
 

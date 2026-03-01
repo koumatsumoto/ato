@@ -1,61 +1,77 @@
-# GitHub OAuth App 作成
+# GitHub App 設定ガイド
+
+> ファイル名は互換のため `01-github-oauth-app.md` のまま維持しているが、現行運用は GitHub App 前提。
 
 ## 概要
 
-ATO は GitHub OAuth App を使って認証する。開発用と本番用の 2 つを作成する。
+ATO は GitHub App ベースで認証する。
+このガイドでは、OAuth Proxy (`/auth/callback`) へ戻すための GitHub App 設定を行う。
 
 ---
 
-## 手順
+## 1. GitHub App を作成
 
-### 1. OAuth App 作成画面を開く
+GitHub > Settings > Developer settings > GitHub Apps > New GitHub App
 
-GitHub > Settings > Developer settings > OAuth Apps > "New OAuth App"
+### 必須設定
 
-### 2. 開発用 OAuth App を作成
+| 項目         | 開発例                                | 本番例                                                    |
+| ------------ | ------------------------------------- | --------------------------------------------------------- |
+| App name     | `ATO (dev)`                           | `ATO`                                                     |
+| Homepage URL | `http://localhost:5173`               | `https://<user>.github.io/ato`                            |
+| Callback URL | `http://localhost:8787/auth/callback` | `https://ato-oauth.<subdomain>.workers.dev/auth/callback` |
 
-| 項目                       | 値                                    |
-| -------------------------- | ------------------------------------- |
-| Application name           | `ATO (dev)`                           |
-| Homepage URL               | `http://localhost:5173`               |
-| Authorization callback URL | `http://localhost:8787/auth/callback` |
+### 権限
 
-"Register application" をクリック。
+- Repository permissions: `Issues` = Read and write
+- Metadata は既定の Read-only
 
-### 3. Client Secret を生成
+### 追加オプション
 
-- "Generate a new client secret" をクリック
-- Client ID と Client Secret を控える（Secret は再表示不可）
+- `Request user authorization (OAuth) during installation` を有効化
 
-### 4. 開発用の認証情報をローカルに保存
+---
 
-`apps/oauth-proxy/.dev.vars` を作成:
+## 2. Client ID / Client Secret を取得
+
+作成後の画面で以下を控える。
+
+- Client ID
+- Client Secret (再表示不可)
+
+---
+
+## 3. 開発環境へ設定
+
+`apps/oauth-proxy/.dev.vars`:
 
 ```ini
-GITHUB_CLIENT_ID=<開発用 Client ID>
-GITHUB_CLIENT_SECRET=<開発用 Client Secret>
+GITHUB_CLIENT_ID=<Client ID>
+GITHUB_CLIENT_SECRET=<Client Secret>
 SPA_ORIGIN=http://localhost:5173
 ```
 
-`.dev.vars` は `.gitignore` 対象のため、リポジトリにコミットされない。
+---
 
-### 5. 本番用 OAuth App を作成
+## 4. 本番環境へ設定
 
-同じ手順でもう 1 つ作成する。
+Cloudflare Workers Secrets:
 
-| 項目                       | 値                                                              |
-| -------------------------- | --------------------------------------------------------------- |
-| Application name           | `ATO`                                                           |
-| Homepage URL               | `https://<GitHub ユーザー名>.github.io/ato`                     |
-| Authorization callback URL | `https://ato-oauth.<CF アカウント名>.workers.dev/auth/callback` |
+```bash
+cd apps/oauth-proxy
+npx wrangler secret put GITHUB_CLIENT_ID
+npx wrangler secret put GITHUB_CLIENT_SECRET
+```
 
-- Client ID と Client Secret を控える
-- 本番用の認証情報は Cloudflare Workers の Secrets に設定する（→ [02-cloudflare-workers.md](./02-cloudflare-workers.md)）
+`wrangler.toml` の `SPA_ORIGIN` は GitHub Pages origin を指定する。
 
 ---
 
-## 注意事項
+## 5. GitHub App インストール
 
-- `repo` スコープを使用する（GitHub OAuth App では Issue のみの権限分離ができないため）
-- SPA はコード上で `ato-datastore` リポジトリのみにアクセスを制限する
-- Callback URL は OAuth Proxy のドメインに設定する（SPA のドメインではない）
+利用する GitHub アカウント/組織にアプリをインストールし、`ato-datastore` へアクセス可能な状態にする。
+
+SPA からは、リポジトリ未設定時に `SetupGuide` でインストール導線を表示する。
+
+実装上の既定リンクは `https://github.com/apps/ato-app/installations/new` で固定されている。
+別名 App を使う場合は `apps/spa/src/features/actions/components/SetupGuide.tsx` の `INSTALL_APP_URL` を更新する。

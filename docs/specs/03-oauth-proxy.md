@@ -2,272 +2,123 @@
 
 ## 概要
 
-OAuth Proxy の唯一の目的は、GitHub App の `client_secret` を安全に保持し、
-認可コード (code) を access_token に交換すること。
+`apps/oauth-proxy` は GitHub 認証連携の境界層で、以下のみを担当する。
 
-フレームワーク不使用。Web 標準 API (Request/Response) のみで実装する。
-実装コード量: 約 150 行（ヘルパー関数・セキュリティヘッダー含む）。
+- `/auth/login`: 認証開始
+- `/auth/callback`: code 交換 + postMessage 応答
+- `/auth/refresh`: refresh token 交換
+- `/auth/health`: ヘルスチェック
 
-> 移行の背景と詳細は [11-github-app-migration.md](./11-github-app-migration.md) を参照。
+実装ファイル: `apps/oauth-proxy/src/index.ts`
 
 ---
 
-## エンドポイント
+## 1. エンドポイント仕様
 
-### GET /auth/login
+### 1.1 `GET /auth/login`
 
-OAuth フローを開始する。state を生成し HttpOnly Cookie に保存した上で、GitHub OAuth 認可画面へリダイレクトする。
+処理:
 
-**処理:**
+1. `state` を生成
+2. `oauth_state` Cookie (HttpOnly/Secure/SameSite=Lax, 10分) を設定
+3. GitHub 認可 URL へ 302 リダイレクト
 
-1. `crypto.randomUUID()` で state を生成
-2. state を HttpOnly Cookie に保存 (10 分有効)
-3. GitHub OAuth authorize URL へ 302 リダイレクト
-
-**リダイレクト先:**
+リダイレクト先例:
 
 ```text
 https://github.com/login/oauth/authorize
   ?client_id={GITHUB_CLIENT_ID}
   &redirect_uri={OAUTH_PROXY_ORIGIN}/auth/callback
-  &state={state}
+  &state={generated_state}
 ```
 
-GitHub App では `scope` パラメータは不要。権限は App 登録時に定義済み。
+### 1.2 `GET /auth/callback`
 
-**Cookie:**
+処理:
 
-```text
-Set-Cookie: oauth_state={state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/
-```
+1. `code` / `state` の存在確認
+2. Cookie `oauth_state` と照合
+3. `https://github.com/login/oauth/access_token` に POST
+4. popup 用 HTML を返し、`window.opener.postMessage(...)` で結果を通知
+5. `oauth_state` Cookie を削除
 
----
+postMessage payload:
 
-### GET /auth/callback
+- 成功: `{ type: "ato:auth:success", accessToken, refreshToken?, expiresIn?, refreshTokenExpiresIn? }`
+- 失敗: `{ type: "ato:auth:error", error: "missing_params" | "invalid_state" | "token_exchange_failed" }`
 
-GitHub からのコールバックを処理し、access_token を SPA に返却する。
+### 1.3 `POST /auth/refresh`
 
-**Query (GitHub から):**
+用途: SPA の access token 失効時の再取得。
 
-| パラメータ | 型     | 必須 | 説明              |
-| ---------- | ------ | ---- | ----------------- |
-| `code`     | string | Yes  | 一時認可コード    |
-| `state`    | string | Yes  | CSRF 保護用 state |
+検証:
 
-**処理:**
+- `Origin` ヘッダーが `SPA_ORIGIN` と一致すること
+- JSON body を解釈できること
+- `refreshToken` が存在すること
 
-1. Cookie から `oauth_state` を読み取り、query の `state` と比較検証
-2. Cookie を即座にクリア (ワンタイム使用)
-3. code を GitHub API で access_token に交換
-4. postMessage で access_token を SPA に返却する HTML を返す
-
-**GitHub API 呼び出し:**
+外部呼び出し:
 
 ```text
 POST https://github.com/login/oauth/access_token
-Headers: Accept: application/json, Content-Type: application/json
-Body: { client_id, client_secret, code }
+{ client_id, client_secret, grant_type: "refresh_token", refresh_token }
 ```
 
-**成功レスポンス (HTML):**
+レスポンス:
 
-```html
-<!doctype html>
-<html>
-  <body>
-    <p>Logging in...</p>
-    <script>
-      if (window.opener) {
-        window.opener.postMessage({ type: "ato:auth:success", accessToken: "{access_token}" }, "{SPA_ORIGIN}");
-      }
-      window.close();
-    </script>
-  </body>
-</html>
-```
+- 200: `{ accessToken, refreshToken?, expiresIn?, refreshTokenExpiresIn? }`
+- 400: `invalid_request` / `missing_refresh_token`
+- 401: `refresh_failed` (token 取得不可)
+- 403: `forbidden_origin`
+- 502: `refresh_failed` (Upstream エラー)
 
-**エラー時の postMessage:**
+### 1.4 `GET /auth/health`
 
-| 条件                | postMessage type                                      |
-| ------------------- | ----------------------------------------------------- |
-| code/state 欠落     | `ato:auth:error` `{ error: "missing_params" }`        |
-| state 不正/期限切れ | `ato:auth:error` `{ error: "invalid_state" }`         |
-| token 交換失敗      | `ato:auth:error` `{ error: "token_exchange_failed" }` |
+- 200 / body: `OK`
 
 ---
 
-### GET /auth/health
+## 2. CORS とセキュリティ
 
-ヘルスチェック。`200 OK` を返す。
+### 2.1 CORS
 
----
+`OPTIONS` で以下を返す。
 
-## 実装スケッチ
+- `Access-Control-Allow-Origin: {SPA_ORIGIN}`
+- `Access-Control-Allow-Methods: GET, POST, OPTIONS`
+- `Access-Control-Allow-Headers: Content-Type`
 
-```typescript
-interface Env {
-  GITHUB_CLIENT_ID: string;
-  GITHUB_CLIENT_SECRET: string;
-  SPA_ORIGIN: string;
-}
+### 2.2 セキュリティヘッダー
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+すべての主要レスポンスで付与:
 
-    // CORS preflight
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: { ...corsHeaders(env.SPA_ORIGIN), ...securityHeaders() },
-      });
-    }
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: strict-origin-when-cross-origin`
 
-    if (url.pathname === "/auth/login" && request.method === "GET") {
-      return handleLogin(url, env);
-    }
+popup HTML には追加で:
 
-    if (url.pathname === "/auth/callback" && request.method === "GET") {
-      return handleCallback(url, request, env);
-    }
-
-    if (url.pathname === "/auth/health") {
-      return new Response("OK", { status: 200, headers: securityHeaders() });
-    }
-
-    return new Response("Not Found", { status: 404, headers: securityHeaders() });
-  },
-} satisfies ExportedHandler<Env>;
-
-function handleLogin(url: URL, env: Env): Response {
-  const state = crypto.randomUUID();
-  const params = new URLSearchParams({
-    client_id: env.GITHUB_CLIENT_ID,
-    redirect_uri: `${url.origin}/auth/callback`,
-    state,
-    // GitHub App では scope パラメータ不要
-  });
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: `https://github.com/login/oauth/authorize?${params}`,
-      "Set-Cookie": `oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
-      ...securityHeaders(),
-    },
-  });
-}
-
-async function handleCallback(url: URL, request: Request, env: Env): Promise<Response> {
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  const clearCookie = { "Set-Cookie": clearCookieHeader() };
-
-  if (!code || !state) {
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "missing_params" }, clearCookie);
-  }
-
-  const cookies = parseCookies(request.headers.get("Cookie") ?? "");
-  if (cookies["oauth_state"] !== state) {
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "invalid_state" }, clearCookie);
-  }
-
-  try {
-    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-      method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: env.GITHUB_CLIENT_ID,
-        client_secret: env.GITHUB_CLIENT_SECRET,
-        code,
-      }),
-    });
-
-    const tokenData: { access_token?: string } = await tokenRes.json();
-    if (!tokenData.access_token) {
-      return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
-    }
-
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:success", accessToken: tokenData.access_token }, clearCookie);
-  } catch {
-    return postMessageResponse(env.SPA_ORIGIN, { type: "ato:auth:error", error: "token_exchange_failed" }, clearCookie);
-  }
-}
-```
+- `Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'`
 
 ---
 
-## CORS 設定
+## 3. 環境変数
 
-OAuth Proxy は SPA からの直接 fetch 呼び出しを受けないため、CORS は最小限。
-postMessage は HTML レスポンス経由のため CORS 不要だが、将来的な拡張に備えて設定しておく。
+| 変数名                 | 用途                            | 設定箇所                   |
+| ---------------------- | ------------------------------- | -------------------------- |
+| `GITHUB_CLIENT_ID`     | GitHub App Client ID            | Secret (`wrangler secret`) |
+| `GITHUB_CLIENT_SECRET` | GitHub App Client Secret        | Secret (`wrangler secret`) |
+| `SPA_ORIGIN`           | CORS / postMessage 許可オリジン | `wrangler.toml` `[vars]`   |
 
-```typescript
-function corsHeaders(origin: string): Record<string, string> {
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Max-Age": "3600",
-  };
-}
-```
+ローカル開発は `apps/oauth-proxy/.dev.vars` を使用。
 
 ---
 
-## 環境変数
+## 4. テスト方針
 
-| 変数名                 | 説明                                    | 必須 | 例                       |
-| ---------------------- | --------------------------------------- | ---- | ------------------------ |
-| `GITHUB_CLIENT_ID`     | GitHub App Client ID                    | Yes  | `Iv23li.abc123...`       |
-| `GITHUB_CLIENT_SECRET` | GitHub App Client Secret                | Yes  | `secret_...`             |
-| `SPA_ORIGIN`           | SPA のオリジン (postMessage ターゲット) | Yes  | `https://user.github.io` |
+`apps/oauth-proxy/src/__tests__/index.test.ts` で以下を検証する。
 
-環境変数は Cloudflare Dashboard または `wrangler secret put` で設定する。
-ローカル開発時は `.dev.vars` ファイルを使用。
-
----
-
-## ファイル構成
-
-```text
-apps/oauth-proxy/
-  src/
-    index.ts              # Worker エントリポイント (全実装)
-  wrangler.toml           # Cloudflare Workers 設定
-  .dev.vars               # ローカル開発用環境変数 (.gitignore 対象)
-  package.json            # wrangler devDependency のみ
-  tsconfig.json           # TypeScript 設定
-```
-
-### wrangler.toml
-
-```toml
-name = "ato-oauth"
-main = "src/index.ts"
-compatibility_date = "2025-01-01"
-
-[vars]
-SPA_ORIGIN = "https://koumatsumoto.github.io"
-```
-
-### .dev.vars
-
-```text
-GITHUB_CLIENT_ID=your_dev_client_id
-GITHUB_CLIENT_SECRET=your_dev_client_secret
-SPA_ORIGIN=http://localhost:5173
-```
-
----
-
-## GitHub App パーミッション
-
-| Permission | Access       | 必要理由                                     |
-| ---------- | ------------ | -------------------------------------------- |
-| Issues     | Read & Write | TODO の CRUD 操作 (Issue の作成・更新・取得) |
-| Metadata   | Read-only    | 自動付与。リポジトリ存在確認に使用           |
-
-GitHub App では OAuth App の `scope` に代わり、App 登録時に細粒度パーミッションを定義する。
-`scope` パラメータは認可 URL に含めない。
-トークン有効期限は無効（Expire user authorization tokens: off）のため、リフレッシュは不要。
+- login/callback/refresh/health の正常系
+- state 不一致や必須パラメータ欠落などの異常系
+- Origin 不正時の refresh 拒否
+- セキュリティヘッダー/CORS
