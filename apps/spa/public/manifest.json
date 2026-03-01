@@ -1,7 +1,7 @@
 {
   "name": "ATO",
   "short_name": "ATO",
-  "description": "ATO - 日々の跡を残すメモアプリ",
+  "description": "ATO - あとでやることを残すメモアプリ",
   "start_url": "/ato/",
   "scope": "/ato/",
   "display": "standalone",

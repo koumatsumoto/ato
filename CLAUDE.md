@@ -1,4 +1,4 @@
-# ATO - 日々の跡を残すメモアプリ
+# ATO - あとでやることを残すメモアプリ
 
 GitHub Issues をバックエンドに使うメモアプリ。1 Issue = 1 やること(Action)。
 用語の詳細は `docs/specs/10-terminology.md` を参照。
