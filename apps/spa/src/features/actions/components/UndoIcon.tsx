@@ -1,17 +1,18 @@
 export function UndoIcon() {
   return (
     <svg
-      className="h-5 w-5"
+      className="h-4 w-4"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       data-testid="undo-icon"
     >
-      <path d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+      <path d="M3 7v6h6" />
+      <path d="M3 13a9 9 0 1 0 3-7.7" />
     </svg>
   );
 }
