@@ -66,7 +66,7 @@ export function SortableActionList({ actions, onReorder }: SortableActionListPro
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={actions.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-        <div className="rounded-lg border border-gray-200 bg-white">
+        <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
           {actions.map((action) => (
             <SortableActionItem key={action.id} action={action} />
           ))}

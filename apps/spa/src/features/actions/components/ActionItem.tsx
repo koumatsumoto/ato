@@ -36,7 +36,7 @@ export function ActionItem({ action }: { readonly action: Action }) {
       tabIndex={isSaving ? -1 : 0}
       onClick={handleNavigate}
       onKeyDown={(e) => e.key === "Enter" && handleNavigate()}
-      className={`flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 ${isSaving ? "cursor-default opacity-50" : `cursor-pointer hover:bg-gray-50 ${isExiting ? "animate-fadeOut" : "animate-fadeIn"}`}`}
+      className={`flex items-center gap-3 bg-white px-4 py-3 ${isSaving ? "cursor-default opacity-50" : `cursor-pointer hover:bg-gray-50 ${isExiting ? "animate-fadeOut" : "animate-fadeIn"}`}`}
       aria-disabled={isSaving}
     >
       <span className={`min-w-0 flex-1 truncate text-sm ${action.state === "closed" ? "line-through text-gray-400" : "text-gray-800"}`}>
@@ -56,7 +56,7 @@ export function ActionItem({ action }: { readonly action: Action }) {
         onClick={handleToggle}
         disabled={isBusy}
         aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ${
           action.state === "open"
             ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500"
             : "text-gray-400 hover:bg-amber-50 hover:text-amber-500"

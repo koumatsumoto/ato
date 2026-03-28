@@ -19,7 +19,7 @@ export function MainPage() {
   const sorted = useSortedActions();
   const searchResult = useSearchActions(searchQuery, includeCompleted, searchLabel);
 
-  const isSearching = searchQuery.trim().length > 0 || searchLabel.length > 0;
+  const isSearching = searchQuery.trim().length > 0 || searchLabel.length > 0 || includeCompleted;
   const actions = isSearching ? (searchResult.data ?? []) : sorted.actions;
   const isLoading = isSearching ? searchResult.isLoading : sorted.isLoading;
   const error = isSearching ? searchResult.error : sorted.error;
@@ -49,7 +49,7 @@ export function MainPage() {
             <ActionEmptyState />
           )
         ) : isSearching ? (
-          <div className="rounded-lg border border-gray-200 bg-white">
+          <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
             {actions.map((action) => (
               <ActionItem key={action.id} action={action} />
             ))}

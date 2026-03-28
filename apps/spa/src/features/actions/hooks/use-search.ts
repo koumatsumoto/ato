@@ -8,7 +8,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 export function useSearchActions(query: string, includeCompleted: boolean, label?: string) {
   const login = useLogin();
   const debouncedQuery = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
-  const hasSearchCriteria = debouncedQuery.length > 0 || !!label;
+  const hasSearchCriteria = debouncedQuery.length > 0 || !!label || includeCompleted;
 
   return useQuery({
     queryKey: ["actions", "search", debouncedQuery, includeCompleted, label ?? ""],

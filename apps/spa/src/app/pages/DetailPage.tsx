@@ -5,6 +5,8 @@ import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
 import { useDraftRestoration } from "@/features/actions/hooks/use-draft-restoration";
 import { useRelativeTime } from "@/shared/hooks/use-relative-time";
 import { addRecentLabels } from "@/features/actions/lib/label-store";
+import { CheckCircleIcon } from "@/features/actions/components/CheckCircleIcon";
+import { UndoIcon } from "@/features/actions/components/UndoIcon";
 import { DetailSkeleton } from "@/features/actions/components/DetailSkeleton";
 import { LabelEditor } from "@/features/actions/components/LabelEditor";
 import { NotFound } from "@/shared/components/ui/NotFound";
@@ -71,14 +73,16 @@ export function DetailPage() {
     [setLabels, saveLabels],
   );
 
+  const isToggleBusy = closeAction.isPending || reopenAction.isPending;
+
   const handleToggle = useCallback(() => {
-    if (!action) return;
+    if (!action || isToggleBusy) return;
     if (action.state === "open") {
       closeAction.mutate(action.id);
     } else {
       reopenAction.mutate(action.id);
     }
-  }, [action, closeAction, reopenAction]);
+  }, [action, isToggleBusy, closeAction, reopenAction]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -95,17 +99,6 @@ export function DetailPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button
-          onClick={handleToggle}
-          aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 hover:border-blue-500"
-        >
-          {action.state === "closed" && (
-            <svg className="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </button>
         {isTitleEditing ? (
           <input
             ref={titleInputRef}
@@ -122,6 +115,18 @@ export function DetailPage() {
             {title || "タイトルなし"}
           </button>
         )}
+        <button
+          onClick={handleToggle}
+          disabled={isToggleBusy}
+          aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ${
+            action.state === "open"
+              ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500"
+              : "text-gray-400 hover:bg-amber-50 hover:text-amber-500"
+          }`}
+        >
+          {action.state === "open" ? <CheckCircleIcon /> : <UndoIcon />}
+        </button>
       </div>
       <LabelEditor labels={labels} onChange={handleLabelsChange} />
       <textarea
