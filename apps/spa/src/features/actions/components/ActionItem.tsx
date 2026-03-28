@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import type { Action } from "@/features/actions/types";
 import { useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
 import { CheckCircleIcon } from "./CheckCircleIcon";
-import { UndoIcon } from "./UndoIcon";
+import { CheckCircleSolidIcon } from "./CheckCircleSolidIcon";
 
 export function ActionItem({ action }: { readonly action: Action }) {
   const navigate = useNavigate();
@@ -57,12 +57,10 @@ export function ActionItem({ action }: { readonly action: Action }) {
         disabled={isBusy}
         aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ${
-          action.state === "open"
-            ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500"
-            : "text-gray-400 hover:bg-amber-50 hover:text-amber-500"
+          action.state === "open" ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500" : "hover:bg-emerald-50"
         }`}
       >
-        {action.state === "open" ? <CheckCircleIcon /> : <UndoIcon />}
+        {action.state === "open" ? <CheckCircleIcon /> : <CheckCircleSolidIcon />}
       </button>
     </div>
   );

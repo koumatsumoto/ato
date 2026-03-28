@@ -116,14 +116,14 @@ describe("ActionItem", () => {
     expect(screen.getByTestId("check-circle-icon")).toBeInTheDocument();
   });
 
-  it("renders UndoIcon for closed actions", () => {
+  it("renders CheckCircleSolidIcon for closed actions", () => {
     render(
       <MemoryRouter>
         <ActionItem action={makeAction({ state: "closed" })} />
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("undo-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("check-circle-solid-icon")).toBeInTheDocument();
   });
 
   describe("saving state (negative ID)", () => {

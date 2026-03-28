@@ -6,7 +6,7 @@ import { useDraftRestoration } from "@/features/actions/hooks/use-draft-restorat
 import { useRelativeTime } from "@/shared/hooks/use-relative-time";
 import { addRecentLabels } from "@/features/actions/lib/label-store";
 import { CheckCircleIcon } from "@/features/actions/components/CheckCircleIcon";
-import { UndoIcon } from "@/features/actions/components/UndoIcon";
+import { CheckCircleSolidIcon } from "@/features/actions/components/CheckCircleSolidIcon";
 import { DetailSkeleton } from "@/features/actions/components/DetailSkeleton";
 import { LabelEditor } from "@/features/actions/components/LabelEditor";
 import { NotFound } from "@/shared/components/ui/NotFound";
@@ -120,12 +120,10 @@ export function DetailPage() {
           disabled={isToggleBusy}
           aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ${
-            action.state === "open"
-              ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500"
-              : "text-gray-400 hover:bg-amber-50 hover:text-amber-500"
+            action.state === "open" ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500" : "hover:bg-emerald-50"
           }`}
         >
-          {action.state === "open" ? <CheckCircleIcon /> : <UndoIcon />}
+          {action.state === "open" ? <CheckCircleIcon /> : <CheckCircleSolidIcon />}
         </button>
       </div>
       <LabelEditor labels={labels} onChange={handleLabelsChange} />
