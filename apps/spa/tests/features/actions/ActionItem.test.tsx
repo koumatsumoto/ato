@@ -8,6 +8,8 @@ import { makeAction } from "../../factories";
 const mockNavigate = vi.fn();
 const mockCloseMutate = vi.fn();
 const mockReopenMutate = vi.fn();
+let mockCloseIsPending = false;
+let mockReopenIsPending = false;
 
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
@@ -20,17 +22,23 @@ vi.mock("react-router", async () => {
 vi.mock("@/features/actions/hooks/use-actions", () => ({
   useCloseAction: () => ({
     mutate: mockCloseMutate,
-    isPending: false,
+    get isPending() {
+      return mockCloseIsPending;
+    },
   }),
   useReopenAction: () => ({
     mutate: mockReopenMutate,
-    isPending: false,
+    get isPending() {
+      return mockReopenIsPending;
+    },
   }),
 }));
 
 describe("ActionItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCloseIsPending = false;
+    mockReopenIsPending = false;
   });
 
   it("renders the action title", () => {
@@ -98,6 +106,26 @@ describe("ActionItem", () => {
     expect(screen.getByText("Test action")).toHaveClass("line-through");
   });
 
+  it("renders CheckCircleIcon for open actions", () => {
+    render(
+      <MemoryRouter>
+        <ActionItem action={makeAction({ state: "open" })} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("check-circle-icon")).toBeInTheDocument();
+  });
+
+  it("renders UndoIcon for closed actions", () => {
+    render(
+      <MemoryRouter>
+        <ActionItem action={makeAction({ state: "closed" })} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("undo-icon")).toBeInTheDocument();
+  });
+
   describe("saving state (negative ID)", () => {
     it("renders with reduced opacity when action has negative ID", () => {
       const { container } = render(
@@ -153,6 +181,43 @@ describe("ActionItem", () => {
 
       const row = container.querySelector("[role='button']")!;
       expect(row).toHaveAttribute("aria-disabled", "true");
+    });
+  });
+
+  describe("double-click prevention", () => {
+    it("disables toggle button while close mutation is pending", () => {
+      mockCloseIsPending = true;
+      render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ state: "open" })} />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByLabelText("完了にする")).toBeDisabled();
+    });
+
+    it("disables toggle button while reopen mutation is pending", () => {
+      mockReopenIsPending = true;
+      render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ state: "closed" })} />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByLabelText("未完了に戻す")).toBeDisabled();
+    });
+
+    it("does not call closeAction again during exit animation", async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <ActionItem action={makeAction({ id: 5, state: "open" })} />
+        </MemoryRouter>,
+      );
+
+      await user.click(screen.getByLabelText("完了にする"));
+      // Button should be disabled after first click (isExiting = true)
+      expect(screen.getByLabelText("完了にする")).toBeDisabled();
     });
   });
 });

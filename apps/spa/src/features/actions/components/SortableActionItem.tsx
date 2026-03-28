@@ -22,7 +22,7 @@ export function SortableActionItem({ action }: { readonly action: Action }) {
         {...attributes}
         {...listeners}
         aria-label="並び替え"
-        className="flex shrink-0 cursor-grab touch-none items-center justify-center px-1.5 py-3 text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+        className="flex shrink-0 cursor-grab touch-none items-center justify-center px-3 py-3 text-gray-300 hover:text-gray-500 active:cursor-grabbing"
       >
         <GripIcon />
       </button>

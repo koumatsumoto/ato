@@ -75,7 +75,7 @@ export function SortableActionList({ actions, onReorder }: SortableActionListPro
       <DragOverlay>
         {activeAction ? (
           <div className="flex items-center rounded-lg border border-gray-200 bg-white shadow-lg">
-            <div className="flex shrink-0 items-center justify-center px-1.5 py-3 text-gray-400">
+            <div className="flex shrink-0 items-center justify-center px-3 py-3 text-gray-400">
               <GripIcon />
             </div>
             <div className="min-w-0 flex-1">
