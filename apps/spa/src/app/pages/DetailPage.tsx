@@ -5,8 +5,7 @@ import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
 import { useDraftRestoration } from "@/features/actions/hooks/use-draft-restoration";
 import { useRelativeTime } from "@/shared/hooks/use-relative-time";
 import { addRecentLabels } from "@/features/actions/lib/label-store";
-import { CheckCircleIcon } from "@/features/actions/components/CheckCircleIcon";
-import { CheckCircleSolidIcon } from "@/features/actions/components/CheckCircleSolidIcon";
+import { ActionToggleButton } from "@/features/actions/components/ActionToggleButton";
 import { DetailSkeleton } from "@/features/actions/components/DetailSkeleton";
 import { LabelEditor } from "@/features/actions/components/LabelEditor";
 import { NotFound } from "@/shared/components/ui/NotFound";
@@ -75,21 +74,18 @@ export function DetailPage() {
 
   const isToggleBusy = closeAction.isPending || reopenAction.isPending;
 
-  const handleToggle = useCallback(() => {
+  const handleToggle = () => {
     if (!action || isToggleBusy) return;
     if (action.state === "open") {
       closeAction.mutate(action.id);
     } else {
       reopenAction.mutate(action.id);
     }
-  }, [action, isToggleBusy, closeAction, reopenAction]);
+  };
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      saveNow();
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("beforeunload", saveNow);
+    return () => window.removeEventListener("beforeunload", saveNow);
   }, [saveNow]);
 
   if (isLoading) return <DetailSkeleton />;
@@ -115,16 +111,7 @@ export function DetailPage() {
             {title || "タイトルなし"}
           </button>
         )}
-        <button
-          onClick={handleToggle}
-          disabled={isToggleBusy}
-          aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ${
-            action.state === "open" ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500" : "hover:bg-emerald-50"
-          }`}
-        >
-          {action.state === "open" ? <CheckCircleIcon /> : <CheckCircleSolidIcon />}
-        </button>
+        <ActionToggleButton state={action.state} disabled={isToggleBusy} onClick={handleToggle} />
       </div>
       <LabelEditor labels={labels} onChange={handleLabelsChange} />
       <textarea

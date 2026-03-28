@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import type { Action } from "@/features/actions/types";
 import { useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
-import { CheckCircleIcon } from "./CheckCircleIcon";
-import { CheckCircleSolidIcon } from "./CheckCircleSolidIcon";
+import { ActionToggleButton } from "./ActionToggleButton";
 
 export function ActionItem({ action }: { readonly action: Action }) {
   const navigate = useNavigate();
@@ -52,16 +51,7 @@ export function ActionItem({ action }: { readonly action: Action }) {
           {action.labels.length > 3 && <span className="text-xs text-gray-400">+{action.labels.length - 3}</span>}
         </div>
       )}
-      <button
-        onClick={handleToggle}
-        disabled={isBusy}
-        aria-label={action.state === "open" ? "完了にする" : "未完了に戻す"}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ${
-          action.state === "open" ? "text-gray-300 hover:bg-emerald-50 hover:text-emerald-500" : "hover:bg-emerald-50"
-        }`}
-      >
-        {action.state === "open" ? <CheckCircleIcon /> : <CheckCircleSolidIcon />}
-      </button>
+      <ActionToggleButton state={action.state} disabled={isBusy} onClick={handleToggle} />
     </div>
   );
 }

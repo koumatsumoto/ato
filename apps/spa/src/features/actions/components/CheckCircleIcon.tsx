@@ -1,7 +1,7 @@
-export function CheckCircleIcon() {
+export function CheckCircleIcon({ className = "h-5 w-5" }: { readonly className?: string }) {
   return (
     <svg
-      className="h-5 w-5"
+      className={className}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

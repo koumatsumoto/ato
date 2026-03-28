@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { CheckCircleIcon } from "./CheckCircleIcon";
+import { CheckCircleSolidIcon } from "./CheckCircleSolidIcon";
 import { LabelFilter } from "./LabelFilter";
 
 interface SearchPanelProps {
@@ -91,16 +93,7 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
           onClick={() => handleIncludeCompletedChange(!includeCompleted)}
           className="flex items-center gap-2 text-sm text-gray-500"
         >
-          <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            {includeCompleted ? (
-              <>
-                <circle cx="12" cy="12" r="10" fill="#85d5b2" />
-                <path d="m8.5 12.5 2.5 2.5 5-5" stroke="white" strokeWidth={2} fill="none" />
-              </>
-            ) : (
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth={1.5} />
-            )}
-          </svg>
+          {includeCompleted ? <CheckCircleSolidIcon className="h-4 w-4 shrink-0" /> : <CheckCircleIcon className="h-4 w-4 shrink-0" />}
           完了を表示
         </button>
       </div>
