@@ -15,7 +15,9 @@ export async function searchActions(
     const sanitizedLabel = params.label.replaceAll('"', "");
     qualifiers.push(`label:"${sanitizedLabel}"`);
   }
-  if (!params.includeCompleted) {
+  if (params.includeCompleted) {
+    qualifiers.push("state:closed");
+  } else {
     qualifiers.push("state:open");
   }
 

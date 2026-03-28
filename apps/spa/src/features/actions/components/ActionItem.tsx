@@ -36,7 +36,7 @@ export function ActionItem({ action }: { readonly action: Action }) {
       tabIndex={isSaving ? -1 : 0}
       onClick={handleNavigate}
       onKeyDown={(e) => e.key === "Enter" && handleNavigate()}
-      className={`flex items-center gap-3 bg-white px-4 py-3 ${isSaving ? "cursor-default opacity-50" : `cursor-pointer hover:bg-gray-50 ${isExiting ? "animate-fadeOut" : "animate-fadeIn"}`}`}
+      className={`flex items-center gap-3 px-4 py-3 transition-colors ${isSaving ? "cursor-default opacity-50" : `cursor-pointer hover:bg-gray-50 ${isExiting ? "animate-fadeOut" : "animate-fadeIn"}`}`}
       aria-disabled={isSaving}
     >
       <span className={`min-w-0 flex-1 truncate text-sm ${action.state === "closed" ? "line-through text-gray-400" : "text-gray-800"}`}>

@@ -17,7 +17,11 @@ export function SortableActionItem({ action }: { readonly action: Action }) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`flex items-center ${isDragging ? "z-10 opacity-50" : ""}`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center bg-white transition-colors ${isDragging ? "z-10 opacity-50" : "hover:bg-gray-50"}`}
+    >
       <button
         {...attributes}
         {...listeners}
