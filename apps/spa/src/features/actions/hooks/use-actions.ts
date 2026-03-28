@@ -15,7 +15,7 @@ export function useOpenActions() {
           return fetchActions(login, {
             state: "open",
             perPage: 30,
-            sort: "updated",
+            sort: "created",
             direction: "desc",
           });
         }

@@ -7,33 +7,45 @@ import { RepoNotConfiguredError } from "@/shared/lib/errors";
 import { makeAction } from "../../factories";
 
 const mockRefetch = vi.fn();
+const mockReorder = vi.fn();
 
-let mockOpenActionsReturn: {
-  data: { actions: readonly Action[] } | undefined;
+let mockSortedActionsReturn: {
+  actions: readonly Action[];
+  reorder: ReturnType<typeof vi.fn>;
   isLoading: boolean;
   error: Error | null;
   refetch: ReturnType<typeof vi.fn>;
 };
 
-vi.mock("@/features/actions/hooks/use-actions", () => ({
-  useOpenActions: () => mockOpenActionsReturn,
-  useCreateAction: () => ({ mutate: vi.fn(), isPending: false }),
-  useCloseAction: () => ({ mutate: vi.fn(), isPending: false }),
-  useReopenAction: () => ({ mutate: vi.fn(), isPending: false }),
+vi.mock("@/features/actions/hooks/use-sorted-actions", () => ({
+  useSortedActions: () => mockSortedActionsReturn,
 }));
 
 vi.mock("@/features/actions/hooks/use-search", () => ({
   useSearchActions: () => ({ data: undefined, isLoading: false, error: null, refetch: vi.fn() }),
 }));
 
+vi.mock("@/features/actions/hooks/use-actions", () => ({
+  useCloseAction: () => ({ mutate: vi.fn(), isPending: false }),
+  useReopenAction: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateAction: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 describe("MainPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockOpenActionsReturn = { data: undefined, isLoading: false, error: null, refetch: mockRefetch };
+    localStorage.clear();
+    mockSortedActionsReturn = {
+      actions: [],
+      reorder: mockReorder,
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    };
   });
 
   it("shows loading skeleton when loading", () => {
-    mockOpenActionsReturn = { ...mockOpenActionsReturn, data: undefined, isLoading: true, error: null };
+    mockSortedActionsReturn = { ...mockSortedActionsReturn, isLoading: true };
 
     render(
       <MemoryRouter>
@@ -45,8 +57,6 @@ describe("MainPage", () => {
   });
 
   it("shows empty state when no actions", () => {
-    mockOpenActionsReturn = { ...mockOpenActionsReturn, data: { actions: [] }, isLoading: false, error: null };
-
     render(
       <MemoryRouter>
         <MainPage />
@@ -57,13 +67,9 @@ describe("MainPage", () => {
   });
 
   it("renders action items when data is available", () => {
-    mockOpenActionsReturn = {
-      ...mockOpenActionsReturn,
-      data: {
-        actions: [makeAction({ id: 1, title: "First" }), makeAction({ id: 2, title: "Second" })],
-      },
-      isLoading: false,
-      error: null,
+    mockSortedActionsReturn = {
+      ...mockSortedActionsReturn,
+      actions: [makeAction({ id: 1, title: "First" }), makeAction({ id: 2, title: "Second" })],
     };
 
     render(
@@ -77,10 +83,8 @@ describe("MainPage", () => {
   });
 
   it("shows error message when fetch fails", () => {
-    mockOpenActionsReturn = {
-      ...mockOpenActionsReturn,
-      data: undefined,
-      isLoading: false,
+    mockSortedActionsReturn = {
+      ...mockSortedActionsReturn,
       error: new Error("Network error"),
     };
 
@@ -94,10 +98,8 @@ describe("MainPage", () => {
   });
 
   it("shows SetupGuide when RepoNotConfiguredError occurs", () => {
-    mockOpenActionsReturn = {
-      ...mockOpenActionsReturn,
-      data: undefined,
-      isLoading: false,
+    mockSortedActionsReturn = {
+      ...mockSortedActionsReturn,
       error: new RepoNotConfiguredError(),
     };
 
@@ -113,10 +115,8 @@ describe("MainPage", () => {
   });
 
   it("hides ActionAddForm when RepoNotConfiguredError occurs", () => {
-    mockOpenActionsReturn = {
-      ...mockOpenActionsReturn,
-      data: undefined,
-      isLoading: false,
+    mockSortedActionsReturn = {
+      ...mockSortedActionsReturn,
       error: new RepoNotConfiguredError(),
     };
 
