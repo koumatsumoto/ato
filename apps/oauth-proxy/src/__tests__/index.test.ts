@@ -23,7 +23,7 @@ function createCallbackRequest(params: { code?: string; state?: string }, cookie
     headers["Cookie"] = `oauth_state=${cookieState}`;
   }
 
-  return new Request(`http://localhost:8787/auth/callback?${searchParams}`, { headers });
+  return new Request(`http://localhost:8787/auth/callback?${searchParams.toString()}`, { headers });
 }
 
 function expectSecurityHeaders(response: Response): void {
@@ -80,7 +80,9 @@ describe("OAuth Proxy Worker", () => {
 
       expect(response.status).toBe(302);
 
-      const location = new URL(response.headers.get("Location")!);
+      const locationHeader = response.headers.get("Location");
+      if (!locationHeader) throw new Error("Location header missing");
+      const location = new URL(locationHeader);
       expect(location.origin).toBe("https://github.com");
       expect(location.pathname).toBe("/login/oauth/authorize");
       expect(location.searchParams.get("client_id")).toBe(TEST_ENV.GITHUB_CLIENT_ID);

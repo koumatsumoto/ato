@@ -5,22 +5,21 @@ export class AuthError extends Error {
 export type TokenRefreshFailureReason = "invalid_grant" | "transient";
 
 export class TokenRefreshError extends AuthError {
-  constructor(
-    readonly reason: TokenRefreshFailureReason,
-    message: string,
-    options?: ErrorOptions | undefined,
-  ) {
+  readonly reason: TokenRefreshFailureReason;
+  constructor(reason: TokenRefreshFailureReason, message: string, options?: ErrorOptions) {
     super(message, options);
+    this.reason = reason;
   }
 }
 
 export class GitHubApiError extends Error {
   override readonly name = "GitHubApiError" as const;
-  constructor(
-    readonly status: number,
-    readonly body: unknown,
-  ) {
-    super(`GitHub API error: ${status}`);
+  readonly status: number;
+  readonly body: unknown;
+  constructor(status: number, body: unknown) {
+    super(`GitHub API error: ${String(status)}`);
+    this.status = status;
+    this.body = body;
   }
 }
 
@@ -34,8 +33,10 @@ export class NotFoundError extends Error {
 
 export class RateLimitError extends Error {
   override readonly name = "RateLimitError" as const;
-  constructor(readonly resetAt: Date) {
+  readonly resetAt: Date;
+  constructor(resetAt: Date) {
     super(`GitHub API rate limit exceeded. Resets at ${resetAt.toLocaleTimeString()}`);
+    this.resetAt = resetAt;
   }
 }
 

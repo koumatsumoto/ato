@@ -2,7 +2,7 @@
   "name": "@ato/monorepo",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.4.1",
+  "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=24.13.0",
     "pnpm": ">=10.0.0"
@@ -13,7 +13,7 @@
     "dev:proxy": "pnpm --filter @ato/oauth-proxy dev",
     "build": "pnpm --filter @ato/spa build",
     "test": "pnpm --filter @ato/spa test && pnpm --filter @ato/oauth-proxy test",
-    "lint": "pnpm --filter @ato/spa lint",
+    "lint": "pnpm --filter @ato/spa lint && pnpm --filter @ato/oauth-proxy lint",
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json}\"",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
@@ -29,6 +29,7 @@
       "prettier --write"
     ],
     "apps/oauth-proxy/**/*.ts": [
+      "pnpm --filter @ato/oauth-proxy exec eslint --fix",
       "prettier --write"
     ],
     "**/*.json": [
@@ -45,7 +46,13 @@
       "msw",
       "sharp",
       "workerd"
-    ]
+    ],
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "typescript": ">=6",
+        "vite": ">=8"
+      }
+    }
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
@@ -53,6 +60,6 @@
     "lint-staged": "^16",
     "markdownlint-cli": "^0.43",
     "prettier": "^3",
-    "typescript": "^5"
+    "typescript": "catalog:"
   }
 }

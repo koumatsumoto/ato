@@ -162,15 +162,15 @@ describe("rebalance", () => {
     const key1 = result.get(1);
     const key2 = result.get(2);
     const key3 = result.get(3);
-    expect(key1).toBeDefined();
-    expect(key2).toBeDefined();
-    expect(key3).toBeDefined();
+    if (key1 === undefined || key2 === undefined || key3 === undefined) {
+      throw new Error("Expected all keys to be defined");
+    }
 
     // First item gets baseKey, second baseKey-1000, third baseKey-2000
-    expect(key1! - key2!).toBe(1000);
-    expect(key2! - key3!).toBe(1000);
-    expect(key1!).toBeGreaterThanOrEqual(before);
-    expect(key1!).toBeLessThanOrEqual(after);
+    expect(key1 - key2).toBe(1000);
+    expect(key2 - key3).toBe(1000);
+    expect(key1).toBeGreaterThanOrEqual(before);
+    expect(key1).toBeLessThanOrEqual(after);
   });
 
   it("handles empty actions array", () => {

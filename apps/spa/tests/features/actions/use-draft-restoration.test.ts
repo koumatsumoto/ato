@@ -49,7 +49,7 @@ describe("useDraftRestoration", () => {
   });
 
   it("uses action data when draft is older", () => {
-    const removeDraftSpy = vi.spyOn(draftStore, "removeDraft").mockImplementation(() => {});
+    const removeDraftSpy = vi.spyOn(draftStore, "removeDraft").mockReturnValue(undefined);
     vi.spyOn(draftStore, "getDraft").mockReturnValue({
       title: "Old Draft",
       memo: "Old Memo",
@@ -72,13 +72,19 @@ describe("useDraftRestoration", () => {
 
     const { result } = renderHook(() => useDraftRestoration({ action }));
 
-    act(() => result.current.setTitle("New Title"));
+    act(() => {
+      result.current.setTitle("New Title");
+    });
     expect(result.current.title).toBe("New Title");
 
-    act(() => result.current.setMemo("New Memo"));
+    act(() => {
+      result.current.setMemo("New Memo");
+    });
     expect(result.current.memo).toBe("New Memo");
 
-    act(() => result.current.setLabels(["label1"]));
+    act(() => {
+      result.current.setLabels(["label1"]);
+    });
     expect(result.current.labels).toEqual(["label1"]);
   });
 

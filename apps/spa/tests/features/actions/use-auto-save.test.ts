@@ -14,12 +14,21 @@ const mockSaveDraft = vi.fn();
 const mockRemoveDraft = vi.fn();
 
 vi.mock("@/features/actions/lib/draft-store", () => ({
-  saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
-  removeDraft: (...args: unknown[]) => mockRemoveDraft(...args),
+  saveDraft: (...args: unknown[]) => mockSaveDraft(...args) as unknown,
+  removeDraft: (...args: unknown[]) => mockRemoveDraft(...args) as unknown,
 }));
 
 import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
 import { NetworkError } from "@/shared/lib/errors";
+
+interface MutateCallbacks {
+  onSuccess: () => void;
+  onError: (error: Error) => void;
+}
+
+function getMutateCallbacks(callIndex = 0): MutateCallbacks {
+  return (mockMutate.mock.calls[callIndex] as [unknown, MutateCallbacks])[1];
+}
 
 function defaultParams(overrides: Record<string, unknown> = {}) {
   return {
@@ -115,7 +124,7 @@ describe("useAutoSave", () => {
       expect(mockMutate).toHaveBeenCalledTimes(1);
       expect(mockMutate).toHaveBeenCalledWith(
         { id: 1, title: "Updated title", memo: "Test memo", labels: [] },
-        expect.objectContaining({ onSuccess: expect.any(Function) }),
+        expect.objectContaining({ onSuccess: expect.any(Function) as unknown }),
       );
     });
 
@@ -159,7 +168,7 @@ describe("useAutoSave", () => {
       expect(mockMutate).toHaveBeenCalledTimes(1);
       expect(mockMutate).toHaveBeenCalledWith(
         { id: 1, title: "Test title", memo: "Changed memo", labels: [] },
-        expect.objectContaining({ onSuccess: expect.any(Function) }),
+        expect.objectContaining({ onSuccess: expect.any(Function) as unknown }),
       );
     });
 
@@ -204,14 +213,15 @@ describe("useAutoSave", () => {
         result.current.saveNow();
       });
 
-      const onSuccess = mockMutate.mock.calls[0]![1].onSuccess;
+      const { onSuccess } = getMutateCallbacks();
 
       act(() => {
         onSuccess();
       });
 
-      expect(result.current.lastSavedAt).not.toBeNull();
-      expect(result.current.lastSavedAt!.getTime()).toBeGreaterThanOrEqual(beforeSave);
+      const { lastSavedAt } = result.current;
+      if (!lastSavedAt) throw new Error("Expected lastSavedAt to be set");
+      expect(lastSavedAt.getTime()).toBeGreaterThanOrEqual(beforeSave);
     });
 
     it("removes draft on successful save", () => {
@@ -225,7 +235,7 @@ describe("useAutoSave", () => {
         result.current.saveNow();
       });
 
-      const onSuccess = mockMutate.mock.calls[0]![1].onSuccess;
+      const { onSuccess } = getMutateCallbacks();
 
       act(() => {
         onSuccess();
@@ -247,7 +257,7 @@ describe("useAutoSave", () => {
         result.current.saveNow();
       });
 
-      const onError = mockMutate.mock.calls[0]![1].onError;
+      const { onError } = getMutateCallbacks();
 
       act(() => {
         onError(new NetworkError("offline"));
@@ -257,7 +267,7 @@ describe("useAutoSave", () => {
         title: "Offline edit",
         memo: "Test memo",
         labels: [],
-        savedAt: expect.any(String),
+        savedAt: expect.any(String) as unknown,
         serverUpdatedAt: "2026-01-15T10:00:00Z",
       });
     });
@@ -273,7 +283,7 @@ describe("useAutoSave", () => {
         result.current.saveNow();
       });
 
-      const onError = mockMutate.mock.calls[0]![1].onError;
+      const { onError } = getMutateCallbacks();
 
       act(() => {
         onError(new Error("other error"));
@@ -310,7 +320,7 @@ describe("useAutoSave", () => {
       expect(mockMutate).toHaveBeenCalledTimes(1);
       expect(mockMutate).toHaveBeenCalledWith(
         { id: 1, title: "Test title", memo: "Test memo", labels: ["feature"] },
-        expect.objectContaining({ onSuccess: expect.any(Function) }),
+        expect.objectContaining({ onSuccess: expect.any(Function) as unknown }),
       );
     });
 
@@ -339,7 +349,7 @@ describe("useAutoSave", () => {
 
       expect(mockMutate).toHaveBeenCalledWith(
         { id: 1, title: "Updated title", memo: "Updated memo", labels: ["urgent"] },
-        expect.objectContaining({ onSuccess: expect.any(Function) }),
+        expect.objectContaining({ onSuccess: expect.any(Function) as unknown }),
       );
     });
 
@@ -362,7 +372,7 @@ describe("useAutoSave", () => {
 
       expect(mockMutate).toHaveBeenCalledWith(
         { id: 1, title: "Changed title", memo: "Test memo", labels: ["existing"] },
-        expect.objectContaining({ onSuccess: expect.any(Function) }),
+        expect.objectContaining({ onSuccess: expect.any(Function) as unknown }),
       );
     });
 
@@ -395,14 +405,15 @@ describe("useAutoSave", () => {
         result.current.saveLabels(["saved-label"]);
       });
 
-      const onSuccess = mockMutate.mock.calls[0]![1].onSuccess;
+      const { onSuccess } = getMutateCallbacks();
 
       act(() => {
         onSuccess();
       });
 
-      expect(result.current.lastSavedAt).not.toBeNull();
-      expect(result.current.lastSavedAt!.getTime()).toBeGreaterThanOrEqual(beforeSave);
+      const { lastSavedAt } = result.current;
+      if (!lastSavedAt) throw new Error("Expected lastSavedAt to be set");
+      expect(lastSavedAt.getTime()).toBeGreaterThanOrEqual(beforeSave);
     });
   });
 
@@ -422,7 +433,7 @@ describe("useAutoSave", () => {
         title: "Unsaved title",
         memo: "Test memo",
         labels: [],
-        savedAt: expect.any(String),
+        savedAt: expect.any(String) as unknown,
         serverUpdatedAt: "2026-01-15T10:00:00Z",
       });
     });

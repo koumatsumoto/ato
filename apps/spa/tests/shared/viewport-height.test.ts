@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { initViewportHeight } from "@/shared/lib/viewport-height";
 
 describe("initViewportHeight", () => {
-  let setPropertySpy: ReturnType<typeof vi.fn>;
+  let setPropertySpy: ReturnType<typeof vi.fn<CSSStyleDeclaration["setProperty"]>>;
   const originalInnerHeight = window.innerHeight;
 
   beforeEach(() => {
-    setPropertySpy = vi.fn();
+    setPropertySpy = vi.fn<CSSStyleDeclaration["setProperty"]>();
     vi.spyOn(document.documentElement.style, "setProperty").mockImplementation(setPropertySpy);
   });
 

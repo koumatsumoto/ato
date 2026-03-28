@@ -1,6 +1,6 @@
 import { Header } from "./Header";
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
     <div className="bg-gray-50" style={{ minHeight: "var(--app-height)" }}>
       <Header />

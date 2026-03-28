@@ -47,13 +47,13 @@ export function openLoginPopup(proxyUrl: string): Promise<TokenSet> {
     const handler = (event: MessageEvent<OAuthMessage>) => {
       if (event.origin !== expectedOrigin) return;
       const { data } = event;
-      if (data?.type === "ato:auth:success") {
+      if (data.type === "ato:auth:success") {
         settle(() => {
           popup.close();
           resolve(toTokenSet(data));
         });
       }
-      if (data?.type === "ato:auth:error") {
+      if (data.type === "ato:auth:error") {
         settle(() => {
           popup.close();
           reject(new Error(data.error));
@@ -63,7 +63,9 @@ export function openLoginPopup(proxyUrl: string): Promise<TokenSet> {
 
     const pollId = setInterval(() => {
       if (popup.closed) {
-        settle(() => reject(new Error("Login popup was closed before authentication completed.")));
+        settle(() => {
+          reject(new Error("Login popup was closed before authentication completed."));
+        });
       }
     }, POPUP_POLL_INTERVAL_MS);
 
@@ -113,10 +115,10 @@ export async function refreshAccessToken(proxyUrl: string, refreshToken: string)
   if (!response.ok) {
     const reason = response.status === 400 || response.status === 401 ? "invalid_grant" : "transient";
     const detail = await readErrorBody(response);
-    throw new TokenRefreshError(reason, `Token refresh failed: status=${response.status} body=${detail}`);
+    throw new TokenRefreshError(reason, `Token refresh failed: status=${String(response.status)} body=${detail}`);
   }
 
-  const data: RefreshResponse = await response.json();
+  const data = (await response.json()) as unknown as RefreshResponse;
   const now = Date.now();
   return {
     accessToken: data.accessToken,

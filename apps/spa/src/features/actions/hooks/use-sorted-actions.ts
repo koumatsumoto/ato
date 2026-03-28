@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
+import type { QueryObserverResult, RefetchOptions } from "@tanstack/react-query";
 import type { Action } from "@/features/actions/types";
+import type { FetchActionsResult } from "@/features/actions/lib/github-api";
 import { useOpenActions } from "./use-actions";
 import { getOrderMap, setOrderEntry, saveRebalancedMap, pruneOrderMap } from "@/features/actions/lib/order-store";
 
 const REBALANCE_GAP = 1000;
 const MIN_GAP = 0.001;
+
+export interface SortedActionsResult {
+  readonly actions: readonly Action[];
+  readonly reorder: (activeId: number, overId: number) => void;
+  readonly isLoading: boolean;
+  readonly error: Error | null;
+  readonly refetch: (options?: RefetchOptions) => Promise<QueryObserverResult<FetchActionsResult>>;
+}
 
 export function getSortKey(action: Action, orderMap: ReadonlyMap<number, number>): number {
   return orderMap.get(action.id) ?? new Date(action.createdAt).getTime();
@@ -54,7 +64,7 @@ export function rebalance(actions: readonly Action[]): ReadonlyMap<number, numbe
   return map;
 }
 
-export function useSortedActions() {
+export function useSortedActions(): SortedActionsResult {
   const [orderMap, setOrderMapState] = useState<ReadonlyMap<number, number>>(getOrderMap);
   const query = useOpenActions();
   const rawActions = useMemo(() => query.data?.actions ?? [], [query.data?.actions]);
@@ -69,7 +79,7 @@ export function useSortedActions() {
   const actions = useMemo(() => sortByKey(rawActions, orderMap), [rawActions, orderMap]);
 
   const reorder = useCallback(
-    (activeId: number, overId: number) => {
+    (activeId: number, overId: number): void => {
       const oldIndex = actions.findIndex((a) => a.id === activeId);
       const newIndex = actions.findIndex((a) => a.id === overId);
       if (oldIndex === -1 || newIndex === -1) return;
@@ -90,10 +100,10 @@ export function useSortedActions() {
   );
 
   return {
-    actions,
-    reorder,
+    actions: actions,
+    reorder: reorder,
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
-  } as const;
+  };
 }

@@ -113,12 +113,12 @@ describe("labelsSchema", () => {
   });
 
   it("rejects array with more than 10 items", () => {
-    const labels = Array.from({ length: 11 }, (_, i) => `label${i}`);
+    const labels = Array.from({ length: 11 }, (_, i) => `label${String(i)}`);
     expect(labelsSchema.safeParse(labels).success).toBe(false);
   });
 
   it("accepts array with exactly 10 items", () => {
-    const labels = Array.from({ length: 10 }, (_, i) => `label${i}`);
+    const labels = Array.from({ length: 10 }, (_, i) => `label${String(i)}`);
     expect(labelsSchema.safeParse(labels).success).toBe(true);
   });
 

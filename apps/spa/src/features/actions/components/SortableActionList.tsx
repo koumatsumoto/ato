@@ -12,7 +12,7 @@ interface SortableActionListProps {
   readonly onReorder: (activeId: number, overId: number) => void;
 }
 
-export function SortableActionList({ actions, onReorder }: SortableActionListProps) {
+export function SortableActionList({ actions, onReorder }: SortableActionListProps): React.JSX.Element {
   const [activeAction, setActiveAction] = useState<Action | null>(null);
 
   const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 5 } });

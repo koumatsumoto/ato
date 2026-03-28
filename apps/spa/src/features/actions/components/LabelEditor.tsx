@@ -12,7 +12,7 @@ interface LabelEditorProps {
   readonly onChange: (labels: readonly string[]) => void;
 }
 
-export function LabelEditor({ labels, onChange }: LabelEditorProps) {
+export function LabelEditor({ labels, onChange }: LabelEditorProps): React.JSX.Element {
   const [inputValue, setInputValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,8 +50,9 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
     itemCount: suggestions.length + (showCreateOption ? 1 : 0),
     inputIsEmpty: inputValue === "",
     onSelect: (index) => {
-      if (index < suggestions.length) {
-        addLabel(suggestions[index]!);
+      const suggestion = suggestions[index];
+      if (index < suggestions.length && suggestion !== undefined) {
+        addLabel(suggestion);
       } else {
         addLabel(inputValue.trim());
       }
@@ -62,7 +63,8 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
       }
     },
     onBackspace: () => {
-      if (labels.length > 0) removeLabel(labels[labels.length - 1]!);
+      const last = labels[labels.length - 1];
+      if (labels.length > 0 && last !== undefined) removeLabel(last);
     },
   });
 
@@ -77,7 +79,13 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
     <div ref={containerRef} className="relative">
       <div className="flex flex-wrap items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 focus-within:border-blue-500 focus-within:bg-white">
         {labels.map((label) => (
-          <LabelBadge key={label} name={label} onRemove={() => removeLabel(label)} />
+          <LabelBadge
+            key={label}
+            name={label}
+            onRemove={() => {
+              removeLabel(label);
+            }}
+          />
         ))}
         <input
           ref={inputRef}
@@ -92,7 +100,7 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
           role="combobox"
           aria-expanded={nav.isOpen && (suggestions.length > 0 || showCreateOption)}
           aria-controls="label-editor-listbox"
-          aria-activedescendant={nav.highlightedIndex >= 0 ? `label-editor-option-${nav.highlightedIndex}` : undefined}
+          aria-activedescendant={nav.highlightedIndex >= 0 ? `label-editor-option-${String(nav.highlightedIndex)}` : undefined}
           aria-autocomplete="list"
         />
       </div>
@@ -104,10 +112,12 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
           className="absolute left-0 right-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
           {suggestions.map((name, index) => (
-            <li key={name} id={`label-editor-option-${index}`} role="option" aria-selected={index === nav.highlightedIndex}>
+            <li key={name} id={`label-editor-option-${String(index)}`} role="option" aria-selected={index === nav.highlightedIndex}>
               <button
                 type="button"
-                onClick={() => addLabel(name)}
+                onClick={() => {
+                  addLabel(name);
+                }}
                 tabIndex={-1}
                 className={`w-full px-3 py-2 text-left text-sm ${
                   index === nav.highlightedIndex ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
@@ -118,10 +128,12 @@ export function LabelEditor({ labels, onChange }: LabelEditorProps) {
             </li>
           ))}
           {showCreateOption && (
-            <li id={`label-editor-option-${suggestions.length}`} role="option" aria-selected={nav.highlightedIndex === suggestions.length}>
+            <li id={`label-editor-option-${String(suggestions.length)}`} role="option" aria-selected={nav.highlightedIndex === suggestions.length}>
               <button
                 type="button"
-                onClick={() => addLabel(inputValue.trim())}
+                onClick={() => {
+                  addLabel(inputValue.trim());
+                }}
                 tabIndex={-1}
                 className={`w-full px-3 py-2 text-left text-sm ${
                   nav.highlightedIndex === suggestions.length ? "bg-blue-50 text-blue-700" : "text-gray-500 hover:bg-gray-50"

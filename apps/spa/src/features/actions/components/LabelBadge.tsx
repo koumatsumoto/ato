@@ -3,7 +3,7 @@ interface LabelBadgeProps {
   readonly onRemove?: () => void;
 }
 
-export function LabelBadge({ name, onRemove }: LabelBadgeProps) {
+export function LabelBadge({ name, onRemove }: LabelBadgeProps): React.JSX.Element {
   return (
     <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
       {name}

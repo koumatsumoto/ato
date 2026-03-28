@@ -5,10 +5,10 @@ import { GripIcon } from "./GripIcon";
 
 function toTransformString(transform: { x: number; y: number; scaleX: number; scaleY: number } | null): string | undefined {
   if (!transform) return undefined;
-  return `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0) scaleX(${transform.scaleX}) scaleY(${transform.scaleY})`;
+  return `translate3d(${String(Math.round(transform.x))}px, ${String(Math.round(transform.y))}px, 0) scaleX(${String(transform.scaleX)}) scaleY(${String(transform.scaleY)})`;
 }
 
-export function SortableActionItem({ action }: { readonly action: Action }) {
+export function SortableActionItem({ action }: { readonly action: Action }): React.JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: action.id });
 
   const style = {

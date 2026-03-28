@@ -1,11 +1,12 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, skipToken } from "@tanstack/react-query";
-import type { CreateActionInput, UpdateActionInput } from "@/features/actions/types";
+import type { UseQueryResult, UseInfiniteQueryResult, UseMutationResult, InfiniteData } from "@tanstack/react-query";
+import type { Action, CreateActionInput, UpdateActionInput } from "@/features/actions/types";
 import { useLogin } from "./use-login";
 import { ensureRepository } from "@/features/actions/lib/repo-init";
 import { fetchActions, createAction, fetchAction, updateAction, closeAction, reopenAction } from "@/features/actions/lib/github-api";
 import type { FetchActionsResult } from "@/features/actions/lib/github-api";
 
-export function useOpenActions() {
+export function useOpenActions(): UseQueryResult<FetchActionsResult> {
   const login = useLogin();
   return useQuery({
     queryKey: ["actions", "open"],
@@ -23,7 +24,7 @@ export function useOpenActions() {
   });
 }
 
-export function useClosedActions() {
+export function useClosedActions(): UseInfiniteQueryResult<InfiniteData<FetchActionsResult>> {
   const login = useLogin();
   return useInfiniteQuery({
     queryKey: ["actions", "closed"],
@@ -40,7 +41,7 @@ export function useClosedActions() {
   });
 }
 
-export function useAction(id: number) {
+export function useAction(id: number): UseQueryResult<Action> {
   const login = useLogin();
   return useQuery({
     queryKey: ["actions", id],
@@ -50,7 +51,7 @@ export function useAction(id: number) {
 
 let nextTempId = -1;
 
-export function useCreateAction() {
+export function useCreateAction(): UseMutationResult<Action, Error, CreateActionInput, { previous: FetchActionsResult | undefined; tempId: number }> {
   const queryClient = useQueryClient();
   const login = useLogin();
   return useMutation({
@@ -90,12 +91,12 @@ export function useCreateAction() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["actions"] });
+      void queryClient.invalidateQueries({ queryKey: ["actions"] });
     },
   });
 }
 
-export function useCloseAction() {
+export function useCloseAction(): UseMutationResult<Action, Error, number, { previous: FetchActionsResult | undefined }> {
   const queryClient = useQueryClient();
   const login = useLogin();
   return useMutation({
@@ -121,12 +122,12 @@ export function useCloseAction() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["actions"] });
+      void queryClient.invalidateQueries({ queryKey: ["actions"] });
     },
   });
 }
 
-export function useReopenAction() {
+export function useReopenAction(): UseMutationResult<Action, Error, number> {
   const queryClient = useQueryClient();
   const login = useLogin();
   return useMutation({
@@ -135,12 +136,12 @@ export function useReopenAction() {
       return reopenAction(login, id);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["actions"] });
+      void queryClient.invalidateQueries({ queryKey: ["actions"] });
     },
   });
 }
 
-export function useUpdateAction() {
+export function useUpdateAction(): UseMutationResult<Action, Error, { id: number } & UpdateActionInput> {
   const queryClient = useQueryClient();
   const login = useLogin();
   return useMutation({
@@ -149,7 +150,7 @@ export function useUpdateAction() {
       return updateAction(login, id, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["actions"] });
+      void queryClient.invalidateQueries({ queryKey: ["actions"] });
     },
   });
 }

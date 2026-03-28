@@ -1,4 +1,4 @@
-export function GripIcon() {
+export function GripIcon(): React.JSX.Element {
   return (
     <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="9" cy="5" r="1.5" />

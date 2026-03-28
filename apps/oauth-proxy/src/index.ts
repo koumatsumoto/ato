@@ -45,8 +45,8 @@ function parseCookies(cookie: string): Record<string, string> {
     cookie
       .split(";")
       .map((pair) => pair.trim().split("="))
-      .filter(([key]) => key)
-      .map(([key, ...rest]) => [key, rest.join("=")]),
+      .filter((parts): parts is [string, ...string[]] => parts[0] !== undefined && parts[0] !== "")
+      .map(([key, ...rest]): [string, string] => [key, rest.join("=")]),
   );
 }
 
@@ -105,7 +105,7 @@ function handleLogin(url: URL, env: Env): Response {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: `https://github.com/login/oauth/authorize?${params}`,
+      Location: `https://github.com/login/oauth/authorize?${params.toString()}`,
       "Set-Cookie": `oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
       ...securityHeaders(),
     },

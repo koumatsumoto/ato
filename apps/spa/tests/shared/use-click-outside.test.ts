@@ -12,7 +12,9 @@ describe("useClickOutside", () => {
     document.body.appendChild(element);
     Object.defineProperty(ref, "current", { value: element, writable: true });
 
-    renderHook(() => useClickOutside(ref, handler));
+    renderHook(() => {
+      useClickOutside(ref, handler);
+    });
 
     const outsideElement = document.createElement("div");
     document.body.appendChild(outsideElement);
@@ -35,7 +37,9 @@ describe("useClickOutside", () => {
     document.body.appendChild(element);
     Object.defineProperty(ref, "current", { value: element, writable: true });
 
-    renderHook(() => useClickOutside(ref, handler));
+    renderHook(() => {
+      useClickOutside(ref, handler);
+    });
 
     child.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
 
@@ -48,7 +52,9 @@ describe("useClickOutside", () => {
     const handler = vi.fn();
     const ref = createRef<HTMLDivElement>();
 
-    renderHook(() => useClickOutside(ref, handler));
+    renderHook(() => {
+      useClickOutside(ref, handler);
+    });
 
     document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
 
@@ -63,7 +69,9 @@ describe("useClickOutside", () => {
     document.body.appendChild(element);
     Object.defineProperty(ref, "current", { value: element, writable: true });
 
-    const { unmount } = renderHook(() => useClickOutside(ref, handler));
+    const { unmount } = renderHook(() => {
+      useClickOutside(ref, handler);
+    });
     unmount();
 
     const outsideElement = document.createElement("div");

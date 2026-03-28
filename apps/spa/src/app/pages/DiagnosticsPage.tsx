@@ -4,7 +4,7 @@ import { getAuthLog, clearAuthLog } from "@/shared/lib/auth-log";
 
 declare const __APP_VERSION__: string;
 
-export function DiagnosticsPage() {
+export function DiagnosticsPage(): React.JSX.Element {
   const { state } = useAuth();
   const [, setRefreshKey] = useState(0);
 
@@ -12,7 +12,9 @@ export function DiagnosticsPage() {
   const hasTokenInStorage = localStorage.getItem("ato:token") !== null;
   const hasTokenInState = state.token !== null;
 
-  const handleRefresh = () => setRefreshKey((k) => k + 1);
+  const handleRefresh = () => {
+    setRefreshKey((k) => k + 1);
+  };
   const handleClear = () => {
     clearAuthLog();
     handleRefresh();

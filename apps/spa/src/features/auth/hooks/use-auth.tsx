@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AuthContextValue, AuthState, AuthUser } from "@/features/auth/types";
+import type { AuthContextValue, AuthState, AuthUser, GitHubUser } from "@/features/auth/types";
 import { AuthError, GitHubApiError, NetworkError, RateLimitError } from "@/shared/lib/errors";
 import { getToken, setTokenSet, clearToken, TOKEN_CLEARED_EVENT, TOKEN_REFRESHED_EVENT } from "@/features/auth/lib/token-store";
 import { openLoginPopup } from "@/features/auth/lib/auth-client";
@@ -19,7 +19,7 @@ export function useAuth(): AuthContextValue {
   return context;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [token, setTokenState] = useState<string | null>(() => getToken());
   const queryClient = useQueryClient();
 
@@ -29,11 +29,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authLog("auth-query:start");
       const response = await githubFetch("/user");
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        authLog("auth-query:api-error", `status=${response.status}`);
+        const body: unknown = await response.json().catch(() => ({}));
+        authLog("auth-query:api-error", `status=${String(response.status)}`);
         throw new GitHubApiError(response.status, body);
       }
-      const data = await response.json();
+      const data = (await response.json()) as unknown as GitHubUser;
       authLog("auth-query:success", data.login);
       return {
         login: data.login,
@@ -62,7 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       queryClient.clear();
     };
     window.addEventListener(TOKEN_CLEARED_EVENT, onTokenCleared);
-    return () => window.removeEventListener(TOKEN_CLEARED_EVENT, onTokenCleared);
+    return () => {
+      window.removeEventListener(TOKEN_CLEARED_EVENT, onTokenCleared);
+    };
   }, [queryClient]);
 
   useEffect(() => {
@@ -72,17 +74,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokenState(newToken);
     };
     window.addEventListener(TOKEN_REFRESHED_EVENT, onTokenRefreshed);
-    return () => window.removeEventListener(TOKEN_REFRESHED_EVENT, onTokenRefreshed);
+    return () => {
+      window.removeEventListener(TOKEN_REFRESHED_EVENT, onTokenRefreshed);
+    };
   }, []);
 
   useEffect(() => {
     const onVisibilityChange = () => {
       const visible = document.visibilityState === "visible";
       const hasToken = localStorage.getItem("ato:token") !== null;
-      authLog("visibility", `visible=${visible} localStorage=${hasToken} state=${token !== null}`);
+      authLog("visibility", `visible=${String(visible)} localStorage=${String(hasToken)} state=${String(token !== null)}`);
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [token]);
 
   const login = useCallback(async () => {

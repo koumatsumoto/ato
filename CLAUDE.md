@@ -5,14 +5,14 @@ GitHub Issues をバックエンドに使うメモアプリ。1 Issue = 1 やる
 
 ## テックスタック
 
-| レイヤー       | 技術                                                              |
-| -------------- | ----------------------------------------------------------------- |
-| SPA            | React 19, TypeScript 5, Vite 6, TailwindCSS 4, React Router 7     |
-| サーバー状態   | TanStack Query 5（楽観的更新、無限スクロール）                    |
-| バリデーション | Zod 3                                                             |
-| OAuth Proxy    | Cloudflare Workers, wrangler 4                                    |
-| テスト         | Vitest 4, Testing Library 16, MSW 2, jsdom                        |
-| ツール         | pnpm 10, ESLint 9 (flat config), Prettier 3, husky 9, lint-staged |
+| レイヤー       | 技術                                                                               |
+| -------------- | ---------------------------------------------------------------------------------- |
+| SPA            | React 19, TypeScript 6, Vite 8 (Rolldown), TailwindCSS 4, React Router 7           |
+| サーバー状態   | TanStack Query 5（楽観的更新、無限スクロール）                                     |
+| バリデーション | Zod 3                                                                              |
+| OAuth Proxy    | Cloudflare Workers, wrangler 4                                                     |
+| テスト         | Vitest 4, Testing Library 16, MSW 2, jsdom                                         |
+| ツール         | pnpm 10 (Catalogs), ESLint 9 (strictTypeChecked), Prettier 3, husky 9, lint-staged |
 
 ## プロジェクト構造
 
@@ -149,10 +149,12 @@ SPA_ORIGIN=http://localhost:5173
 
 - パスエイリアス: `@/*` -> `./src/*` (SPA)
 - Prettier: `printWidth: 150`
-- TypeScript: 全 strict オプション有効（`exactOptionalPropertyTypes` 含む）
-- ESLint: flat config + TypeScript ESLint + React Hooks/Refresh
-- pre-commit: lint-staged（ESLint fix + Prettier + markdownlint）
+- TypeScript 6: 全 strict オプション有効（`erasableSyntaxOnly`, `isolatedDeclarations`, `noUncheckedSideEffectImports` 含む）
+- ESLint: flat config + typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` + React Hooks/Refresh
+- pnpm Catalogs: 共有依存バージョンを `pnpm-workspace.yaml` で一元管理（`catalog:` プロトコル）
+- pre-commit: lint-staged（ESLint fix + Prettier + markdownlint）— SPA + oauth-proxy 両方
 - SPA ベースパス: `/ato/`（GitHub Pages サブパス）
+- `erasableSyntaxOnly`: enum/namespace/constructor parameter properties 禁止（Node.js 型ストリッピング互換）
 
 ## 仕様書
 

@@ -11,7 +11,7 @@ interface LabelFilterProps {
   readonly onChange: (label: string) => void;
 }
 
-export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
+export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps): React.JSX.Element {
   const [inputValue, setInputValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,7 +37,8 @@ export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
     itemCount: suggestions.length,
     inputIsEmpty: inputValue === "",
     onSelect: (index) => {
-      selectLabel(suggestions[index]!);
+      const suggestion = suggestions[index];
+      if (suggestion !== undefined) selectLabel(suggestion);
     },
     onBackspace: () => {
       if (selectedLabel) clearLabel();
@@ -89,7 +90,7 @@ export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
           role="combobox"
           aria-expanded={nav.isOpen && suggestions.length > 0}
           aria-controls="label-filter-listbox"
-          aria-activedescendant={nav.highlightedIndex >= 0 ? `label-filter-option-${nav.highlightedIndex}` : undefined}
+          aria-activedescendant={nav.highlightedIndex >= 0 ? `label-filter-option-${String(nav.highlightedIndex)}` : undefined}
           aria-autocomplete="list"
         />
       </div>
@@ -101,10 +102,12 @@ export function LabelFilter({ selectedLabel, onChange }: LabelFilterProps) {
           className="absolute left-0 right-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
           {suggestions.map((name, index) => (
-            <li key={name} id={`label-filter-option-${index}`} role="option" aria-selected={index === nav.highlightedIndex}>
+            <li key={name} id={`label-filter-option-${String(index)}`} role="option" aria-selected={index === nav.highlightedIndex}>
               <button
                 type="button"
-                onClick={() => selectLabel(name)}
+                onClick={() => {
+                  selectLabel(name);
+                }}
                 tabIndex={-1}
                 className={`w-full px-3 py-2 text-left text-sm ${
                   index === nav.highlightedIndex ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"

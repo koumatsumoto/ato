@@ -24,8 +24,8 @@ describe("draft-store", () => {
       saveDraft(42, draft);
 
       const stored = localStorage.getItem(`${DRAFT_KEY_PREFIX}42`);
-      expect(stored).not.toBeNull();
-      expect(JSON.parse(stored!)).toEqual(draft);
+      if (stored === null) throw new Error("Expected stored draft");
+      expect(JSON.parse(stored) as unknown).toEqual(draft);
     });
 
     it("overwrites existing draft for same actionId", () => {

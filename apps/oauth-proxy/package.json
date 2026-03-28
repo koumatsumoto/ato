@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -12,9 +13,11 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4",
-    "@vitest/coverage-v8": "^4",
-    "typescript": "^5",
-    "vitest": "^4",
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "eslint": "catalog:",
+    "typescript-eslint": "catalog:",
     "wrangler": "^4"
   }
 }

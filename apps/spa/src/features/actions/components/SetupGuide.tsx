@@ -3,7 +3,7 @@ import { REPO_INITIALIZED_KEY } from "@/shared/lib/storage-keys";
 const CREATE_REPO_URL = "https://github.com/new?name=ato-datastore&visibility=private&auto_init=true";
 const INSTALL_APP_URL = "https://github.com/apps/ato-app/installations/new";
 
-export function SetupGuide() {
+export function SetupGuide(): React.JSX.Element {
   const handleReload = () => {
     localStorage.removeItem(REPO_INITIALIZED_KEY);
     window.location.reload();

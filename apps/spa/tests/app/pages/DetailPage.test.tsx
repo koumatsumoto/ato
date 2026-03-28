@@ -54,8 +54,8 @@ const mockGetDraft = vi.fn().mockReturnValue(null);
 const mockRemoveDraft = vi.fn();
 
 vi.mock("@/features/actions/lib/draft-store", () => ({
-  getDraft: (...args: unknown[]) => mockGetDraft(...args),
-  removeDraft: (...args: unknown[]) => mockRemoveDraft(...args),
+  getDraft: (...args: unknown[]) => mockGetDraft(...args) as unknown,
+  removeDraft: (...args: unknown[]) => mockRemoveDraft(...args) as unknown,
 }));
 
 vi.mock("@uiball/loaders", () => ({

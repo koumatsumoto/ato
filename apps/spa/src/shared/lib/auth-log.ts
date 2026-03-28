@@ -1,8 +1,8 @@
-type AuthLogEntry = {
+interface AuthLogEntry {
   timestamp: string;
   event: string;
   detail?: string | undefined;
-};
+}
 
 const MAX_ENTRIES = 50;
 let entries: AuthLogEntry[] = [];

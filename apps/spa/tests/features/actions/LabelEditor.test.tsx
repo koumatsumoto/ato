@@ -84,7 +84,7 @@ describe("LabelEditor", () => {
 
     await user.click(screen.getByRole("combobox"));
     const options = screen.getAllByRole("option");
-    const bugButton = options.find((opt) => opt.textContent?.includes("bug"));
+    const bugButton = options.find((opt) => opt.textContent.includes("bug"));
     if (bugButton) {
       const btn = bugButton.querySelector("button");
       if (btn) await user.click(btn);

@@ -35,7 +35,7 @@ describe("githubFetch", () => {
           Authorization: "Bearer test-token-123",
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
-        }),
+        }) as unknown,
       }),
     );
   });
@@ -84,7 +84,7 @@ describe("githubFetch", () => {
     const response = await githubFetch("/user");
 
     expect(response.status).toBe(200);
-    const data = await response.json();
+    const data = (await response.json()) as unknown as { login: string };
     expect(data.login).toBe("user");
   });
 

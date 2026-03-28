@@ -6,7 +6,7 @@ export interface PaginationInfo {
 export function parseLinkHeader(header: string | null): PaginationInfo {
   if (!header) return { hasNextPage: false, nextPage: null };
 
-  const nextMatch = header.match(/<[^>]*[?&]page=(\d+)[^>]*>;\s*rel="next"/);
+  const nextMatch = /<[^>]*[?&]page=(\d+)[^>]*>;\s*rel="next"/.exec(header);
   if (!nextMatch) return { hasNextPage: false, nextPage: null };
 
   return {

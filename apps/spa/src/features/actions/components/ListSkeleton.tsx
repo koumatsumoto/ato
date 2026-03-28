@@ -1,6 +1,6 @@
 import { Waveform } from "@uiball/loaders";
 
-export function ListSkeleton() {
+export function ListSkeleton(): React.JSX.Element {
   return (
     <div role="status" aria-label="やることを読み込み中" className="flex items-center justify-center py-12">
       <Waveform size={40} lineWeight={3.5} speed={1} color="#9ca3af" />

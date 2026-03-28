@@ -7,7 +7,7 @@ interface SearchPanelProps {
   readonly onSearchChange: (query: string, includeCompleted: boolean, label: string) => void;
 }
 
-export function SearchPanel({ onSearchChange }: SearchPanelProps) {
+export function SearchPanel({ onSearchChange }: SearchPanelProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
@@ -71,7 +71,9 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
+            onChange={(e) => {
+              handleQueryChange(e.target.value);
+            }}
             placeholder="やることを検索..."
             className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:bg-white focus:outline-none"
           />
@@ -90,7 +92,9 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
         <LabelFilter selectedLabel={labelFilter} onChange={handleLabelFilterChange} />
         <button
           type="button"
-          onClick={() => handleIncludeCompletedChange(!includeCompleted)}
+          onClick={() => {
+            handleIncludeCompletedChange(!includeCompleted);
+          }}
           className="flex items-center gap-2 text-sm text-gray-500"
         >
           {includeCompleted ? <CheckCircleSolidIcon className="h-4 w-4 shrink-0" /> : <CheckCircleIcon className="h-4 w-4 shrink-0" />}

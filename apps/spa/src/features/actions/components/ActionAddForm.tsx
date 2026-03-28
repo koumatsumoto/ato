@@ -2,14 +2,14 @@ import { useRef, useState } from "react";
 import { useCreateAction } from "@/features/actions/hooks/use-actions";
 import { createActionSchema } from "@/features/actions/lib/validation";
 
-export function ActionAddForm() {
+export function ActionAddForm(): React.JSX.Element {
   const [title, setTitle] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const createAction = useCreateAction();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     const result = createActionSchema.safeParse({ title: title.trim() });
     if (!result.success) {
@@ -45,7 +45,9 @@ export function ActionAddForm() {
               setTitle(e.target.value);
               if (validationError) setValidationError(null);
             }}
-            onFocus={() => setIsFocused(true)}
+            onFocus={() => {
+              setIsFocused(true);
+            }}
             onBlur={handleBlur}
             placeholder={placeholder}
             className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none"

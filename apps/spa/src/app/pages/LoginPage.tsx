@@ -3,7 +3,7 @@ import { Navigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { consumeRedirectPath } from "@/features/auth/components/AuthGuard";
 
-export function LoginPage() {
+export function LoginPage(): React.JSX.Element {
   const { state, login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -37,7 +37,9 @@ export function LoginPage() {
           </div>
         )}
         <button
-          onClick={handleLogin}
+          onClick={() => {
+            void handleLogin();
+          }}
           disabled={isLoggingIn}
           className="w-full rounded-lg bg-gray-900 px-4 py-3 text-white hover:bg-gray-800 disabled:opacity-50"
         >

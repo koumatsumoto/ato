@@ -1,4 +1,4 @@
-export function CheckCircleIcon({ className = "h-5 w-5" }: { readonly className?: string }) {
+export function CheckCircleIcon({ className = "h-5 w-5" }: { readonly className?: string }): React.JSX.Element {
   return (
     <svg
       className={className}

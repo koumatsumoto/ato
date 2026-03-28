@@ -36,7 +36,7 @@ function PageSkeleton() {
   );
 }
 
-export function AuthGuard() {
+export function AuthGuard(): React.JSX.Element {
   const { state } = useAuth();
   const location = useLocation();
 

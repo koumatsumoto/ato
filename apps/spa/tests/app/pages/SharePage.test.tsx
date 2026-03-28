@@ -48,7 +48,7 @@ describe("SharePage", () => {
         memo: "https://example.com",
         labels: ["あとで読む"],
       },
-      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+      expect.objectContaining({ onSuccess: expect.any(Function) as unknown, onError: expect.any(Function) as unknown }),
     );
   });
 
@@ -159,7 +159,7 @@ describe("SharePage", () => {
       </MemoryRouter>,
     );
 
-    const calledTitle = (mockMutate.mock.calls[0]![0] as { title: string }).title;
+    const calledTitle = ((mockMutate.mock.calls[0] as unknown[])[0] as { title: string }).title;
     expect(calledTitle.length).toBeLessThanOrEqual(256);
     expect(calledTitle.startsWith("読む：")).toBe(true);
   });

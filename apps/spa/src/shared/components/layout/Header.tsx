@@ -3,12 +3,14 @@ import { Link } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useClickOutside } from "@/shared/hooks/use-click-outside";
 
-export function Header() {
+export function Header(): React.JSX.Element {
   const { state, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleCloseMenu = useCallback(() => setIsMenuOpen(false), []);
+  const handleCloseMenu = useCallback(() => {
+    setIsMenuOpen(false);
+  }, []);
   useClickOutside(menuRef, handleCloseMenu);
 
   return (
@@ -23,7 +25,9 @@ export function Header() {
         {state.user && (
           <div ref={menuRef} className="relative">
             <button
-              onClick={() => setIsMenuOpen((prev) => !prev)}
+              onClick={() => {
+                setIsMenuOpen((prev) => !prev);
+              }}
               aria-label="メニュー"
               className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
             >
@@ -39,7 +43,9 @@ export function Header() {
                 </div>
                 <Link
                   to="/diagnostics"
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                  }}
                   className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                 >
                   診断

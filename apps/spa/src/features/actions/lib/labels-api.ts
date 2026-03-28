@@ -7,5 +7,5 @@ export async function fetchLabels(login: string): Promise<readonly GitHubLabel[]
 
   await throwIfNotOk(response);
 
-  return response.json();
+  return (await response.json()) as unknown as readonly GitHubLabel[];
 }

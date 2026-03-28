@@ -12,7 +12,7 @@ export interface AuthState {
 
 export interface AuthContextValue {
   readonly state: AuthState;
-  readonly login: () => void;
+  readonly login: () => Promise<void>;
   readonly logout: () => void;
 }
 

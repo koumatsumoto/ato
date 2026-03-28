@@ -7,7 +7,7 @@ interface ActionToggleButtonProps {
   readonly onClick: (e: React.MouseEvent) => void;
 }
 
-export function ActionToggleButton({ state, disabled, onClick }: ActionToggleButtonProps) {
+export function ActionToggleButton({ state, disabled, onClick }: ActionToggleButtonProps): React.JSX.Element {
   return (
     <button
       onClick={onClick}

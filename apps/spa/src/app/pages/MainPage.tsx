@@ -11,7 +11,7 @@ import { SetupGuide } from "@/features/actions/components/SetupGuide";
 import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
 import { RepoNotConfiguredError } from "@/shared/lib/errors";
 
-export function MainPage() {
+export function MainPage(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
   const [searchLabel, setSearchLabel] = useState("");

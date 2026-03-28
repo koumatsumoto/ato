@@ -47,8 +47,12 @@ export function useDraftRestoration({ action }: UseDraftRestorationParams): UseD
 
   useEffect(() => {
     if (!restoredFromDraft) return;
-    const timer = setTimeout(() => setRestoredFromDraft(false), RESTORE_BANNER_MS);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => {
+      setRestoredFromDraft(false);
+    }, RESTORE_BANNER_MS);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [restoredFromDraft]);
 
   return { title, memo, labels, setTitle, setMemo, setLabels, restoredFromDraft };

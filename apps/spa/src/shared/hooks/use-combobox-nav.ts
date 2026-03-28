@@ -22,14 +22,18 @@ export function useComboboxNav({ itemCount, inputIsEmpty, onSelect, onInputSubmi
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
-  const open = useCallback(() => setIsOpen(true), []);
+  const open = useCallback(() => {
+    setIsOpen(true);
+  }, []);
 
   const close = useCallback(() => {
     setIsOpen(false);
     setHighlightedIndex(-1);
   }, []);
 
-  const resetHighlight = useCallback(() => setHighlightedIndex(-1), []);
+  const resetHighlight = useCallback(() => {
+    setHighlightedIndex(-1);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

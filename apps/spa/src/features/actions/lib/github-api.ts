@@ -33,7 +33,7 @@ export async function fetchActions(
 
   await throwIfNotOk(response);
 
-  const issues: GitHubIssue[] = await response.json();
+  const issues = (await response.json()) as unknown as GitHubIssue[];
   const actions = issues.filter((issue) => !issue.pull_request).map(mapIssueToAction);
 
   const linkHeader = response.headers.get("Link");
@@ -55,15 +55,15 @@ export async function createAction(login: string, input: CreateActionInput): Pro
 
   await throwIfNotOk(response);
 
-  return mapIssueToAction(await response.json());
+  return mapIssueToAction((await response.json()) as unknown as GitHubIssue);
 }
 
 export async function fetchAction(login: string, id: number): Promise<Action> {
-  const response = await githubFetch(`${repoPath(login)}/issues/${id}`);
+  const response = await githubFetch(`${repoPath(login)}/issues/${String(id)}`);
 
   await throwIfNotOk(response);
 
-  const issue: GitHubIssue = await response.json();
+  const issue = (await response.json()) as unknown as GitHubIssue;
   if (issue.pull_request) {
     throw new NotFoundError("Not an action item");
   }
@@ -72,7 +72,7 @@ export async function fetchAction(login: string, id: number): Promise<Action> {
 }
 
 export async function updateAction(login: string, id: number, input: UpdateActionInput): Promise<Action> {
-  const response = await githubFetch(`${repoPath(login)}/issues/${id}`, {
+  const response = await githubFetch(`${repoPath(login)}/issues/${String(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -86,7 +86,7 @@ export async function updateAction(login: string, id: number, input: UpdateActio
 
   await throwIfNotOk(response);
 
-  return mapIssueToAction(await response.json());
+  return mapIssueToAction((await response.json()) as unknown as GitHubIssue);
 }
 
 export async function closeAction(login: string, id: number): Promise<Action> {

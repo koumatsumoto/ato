@@ -35,8 +35,8 @@ describe("github-api", () => {
       const result = await fetchActions("testuser", { state: "open" });
 
       expect(result.actions).toHaveLength(2);
-      expect(result.actions[0]!.id).toBe(1);
-      expect(result.actions[1]!.id).toBe(3);
+      expect((result.actions[0] as { id: number }).id).toBe(1);
+      expect((result.actions[1] as { id: number }).id).toBe(3);
     });
 
     it("parses pagination from Link header", async () => {
@@ -85,7 +85,7 @@ describe("github-api", () => {
       await createAction("testuser", { title: "New action", labels: ["bug", "urgent"] });
 
       const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(options.body as string);
+      const body = JSON.parse(options.body as string) as { labels: string[] };
       expect(body.labels).toEqual(["bug", "urgent"]);
     });
 
@@ -141,7 +141,7 @@ describe("github-api", () => {
 
       expect(action.state).toBe("closed");
       const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(options.body as string);
+      const body = JSON.parse(options.body as string) as { state: string; state_reason: string };
       expect(body.state).toBe("closed");
       expect(body.state_reason).toBe("completed");
     });
@@ -158,7 +158,7 @@ describe("github-api", () => {
 
       expect(action.state).toBe("open");
       const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(options.body as string);
+      const body = JSON.parse(options.body as string) as { state: string; state_reason: string };
       expect(body.state).toBe("open");
       expect(body.state_reason).toBe("reopened");
     });

@@ -8,7 +8,7 @@ function stripControlChars(s: string): string {
   return s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
 }
 
-export function SharePage() {
+export function SharePage(): React.JSX.Element {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const createAction = useCreateAction();
@@ -85,7 +85,9 @@ export function SharePage() {
             </div>
             <p className="text-sm text-red-600">{errorMessage}</p>
             <button
-              onClick={() => navigate("/", { replace: true })}
+              onClick={() => {
+                void navigate("/", { replace: true });
+              }}
               className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800"
             >
               ホームに戻る

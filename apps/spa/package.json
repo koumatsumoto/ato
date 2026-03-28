@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b tsconfig.build.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -30,18 +30,18 @@
     "@testing-library/user-event": "^14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^4",
-    "@vitest/coverage-v8": "^4",
-    "eslint": "^9",
+    "@vitejs/plugin-react": "^6",
+    "@vitest/coverage-v8": "catalog:",
+    "eslint": "catalog:",
     "eslint-plugin-react-hooks": "^5",
     "eslint-plugin-react-refresh": "^0.4",
     "jsdom": "^26",
     "msw": "^2",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "typescript-eslint": "^8",
-    "vite": "^6",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vite": "^8",
     "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^4"
+    "vitest": "catalog:"
   }
 }

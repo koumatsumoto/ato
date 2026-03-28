@@ -41,7 +41,7 @@ describe("buildLabelSuggestions", () => {
   });
 
   it("returns max 8 suggestions", () => {
-    const manyLabels = Array.from({ length: 15 }, (_, i) => makeGitHubLabel({ name: `label${i}` }));
+    const manyLabels = Array.from({ length: 15 }, (_, i) => makeGitHubLabel({ name: `label${String(i)}` }));
     const result = buildLabelSuggestions("", manyLabels, [], []);
     expect(result).toHaveLength(8);
   });

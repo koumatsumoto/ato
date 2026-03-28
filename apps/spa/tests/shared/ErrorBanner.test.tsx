@@ -12,7 +12,7 @@ describe("ErrorBanner", () => {
   });
 
   it("renders retry button when onRetry is provided", () => {
-    render(<ErrorBanner error={new Error("fail")} onRetry={() => {}} />);
+    render(<ErrorBanner error={new Error("fail")} onRetry={vi.fn()} />);
 
     expect(screen.getByText("Retry")).toBeInTheDocument();
   });
@@ -34,7 +34,7 @@ describe("ErrorBanner", () => {
   });
 
   it("renders dismiss button when onDismiss is provided", () => {
-    render(<ErrorBanner error={new Error("fail")} onDismiss={() => {}} />);
+    render(<ErrorBanner error={new Error("fail")} onDismiss={vi.fn()} />);
 
     expect(screen.getByText("Dismiss")).toBeInTheDocument();
   });

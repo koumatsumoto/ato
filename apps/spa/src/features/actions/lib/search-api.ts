@@ -33,6 +33,6 @@ export async function searchActions(
 
   await throwIfNotOk(response);
 
-  const result: GitHubSearchResult = await response.json();
+  const result = (await response.json()) as unknown as GitHubSearchResult;
   return result.items.filter((issue) => !issue.pull_request).map(mapIssueToAction);
 }

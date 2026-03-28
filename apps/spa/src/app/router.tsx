@@ -6,7 +6,7 @@ import { DetailPage } from "@/app/pages/DetailPage";
 import { SharePage } from "@/app/pages/SharePage";
 import { DiagnosticsPage } from "@/app/pages/DiagnosticsPage";
 
-export const router = createBrowserRouter(
+export const router: ReturnType<typeof createBrowserRouter> = createBrowserRouter(
   [
     {
       element: <AuthGuard />,

@@ -64,7 +64,7 @@ describe("LoginPage", () => {
   });
 
   it("shows loading state during login", async () => {
-    let resolveLogin: () => void;
+    let resolveLogin: (() => void) | undefined;
     mockLogin.mockImplementation(
       () =>
         new Promise<void>((resolve) => {
@@ -82,7 +82,8 @@ describe("LoginPage", () => {
 
     expect(screen.getByRole("button", { name: "ログイン中..." })).toBeDisabled();
 
-    resolveLogin!();
+    expect(resolveLogin).toBeDefined();
+    resolveLogin?.();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "GitHub でログイン" })).toBeEnabled();
     });

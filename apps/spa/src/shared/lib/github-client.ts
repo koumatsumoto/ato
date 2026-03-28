@@ -10,7 +10,7 @@ function doFetch(path: string, token: string, options?: RequestInit): Promise<Re
   return fetch(`${GITHUB_API}${path}`, {
     ...options,
     headers: {
-      ...options?.headers,
+      ...(options?.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
@@ -75,6 +75,6 @@ export async function githubFetch(path: string, options?: RequestInit): Promise<
 
 export async function throwIfNotOk(response: Response): Promise<void> {
   if (!response.ok) {
-    throw new GitHubApiError(response.status, await response.json());
+    throw new GitHubApiError(response.status, (await response.json()) as unknown);
   }
 }

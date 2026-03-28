@@ -32,7 +32,7 @@ describe("label-store", () => {
     });
 
     it("limits to 8 labels", () => {
-      const labels = Array.from({ length: 12 }, (_, i) => `label${i}`);
+      const labels = Array.from({ length: 12 }, (_, i) => `label${String(i)}`);
       localStorage.setItem("ato:recent-labels", JSON.stringify(labels));
       expect(getRecentLabels()).toHaveLength(8);
     });
@@ -57,7 +57,7 @@ describe("label-store", () => {
     });
 
     it("caps at 8 labels", () => {
-      const labels = Array.from({ length: 10 }, (_, i) => `label${i}`);
+      const labels = Array.from({ length: 10 }, (_, i) => `label${String(i)}`);
       addRecentLabels(labels);
       expect(getRecentLabels()).toHaveLength(8);
     });

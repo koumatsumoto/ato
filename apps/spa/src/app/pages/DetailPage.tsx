@@ -11,7 +11,7 @@ import { LabelEditor } from "@/features/actions/components/LabelEditor";
 import { NotFound } from "@/shared/components/ui/NotFound";
 import { ErrorBanner } from "@/shared/components/ui/ErrorBanner";
 
-export function DetailPage() {
+export function DetailPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { data: action, isLoading, error, refetch } = useAction(Number(id));
   const closeAction = useCloseAction();
@@ -85,7 +85,9 @@ export function DetailPage() {
 
   useEffect(() => {
     window.addEventListener("beforeunload", saveNow);
-    return () => window.removeEventListener("beforeunload", saveNow);
+    return () => {
+      window.removeEventListener("beforeunload", saveNow);
+    };
   }, [saveNow]);
 
   if (isLoading) return <DetailSkeleton />;
@@ -100,7 +102,9 @@ export function DetailPage() {
             ref={titleInputRef}
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+            }}
             onBlur={handleTitleBlur}
             onKeyDown={handleTitleKeyDown}
             className="flex-1 bg-transparent text-lg font-semibold focus:outline-none"
@@ -116,7 +120,9 @@ export function DetailPage() {
       <LabelEditor labels={labels} onChange={handleLabelsChange} />
       <textarea
         value={memo}
-        onChange={(e) => setMemo(e.target.value)}
+        onChange={(e) => {
+          setMemo(e.target.value);
+        }}
         onBlur={handleMemoBlur}
         onKeyDown={handleSaveKeyDown}
         placeholder="メモを追加..."

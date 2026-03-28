@@ -22,7 +22,9 @@ describe("register-token-refresh", () => {
     const tokenRefresh = await import("@/shared/lib/token-refresh");
     tokenRefresh._resetTokenRefresh();
     await import("@/features/auth/lib/register-token-refresh");
-    return tokenRefresh.getTokenRefreshFn()!;
+    const fn = tokenRefresh.getTokenRefreshFn();
+    if (!fn) throw new Error("Expected refresh function to be registered");
+    return fn;
   }
 
   async function loadTokenRefreshError() {

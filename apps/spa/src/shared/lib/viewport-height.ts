@@ -1,8 +1,8 @@
 function update() {
-  document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
+  document.documentElement.style.setProperty("--app-height", `${String(window.innerHeight)}px`);
 }
 
-export function initViewportHeight() {
+export function initViewportHeight(): void {
   update();
   window.addEventListener("resize", update);
 }

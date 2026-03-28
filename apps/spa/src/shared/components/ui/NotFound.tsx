@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-export function NotFound() {
+export function NotFound(): React.JSX.Element {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
       <h2 className="text-2xl font-bold text-gray-900">見つかりません</h2>

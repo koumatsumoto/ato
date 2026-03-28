@@ -2,7 +2,15 @@ import { z } from "zod";
 
 const DRAFT_KEY_PREFIX = "ato:draft:";
 
-const draftSchema = z.object({
+interface Draft {
+  title: string;
+  memo: string;
+  labels?: string[] | undefined;
+  savedAt: string;
+  serverUpdatedAt: string;
+}
+
+const draftSchema: z.ZodType<Draft> = z.object({
   title: z.string(),
   memo: z.string(),
   labels: z.array(z.string()).optional(),
@@ -10,10 +18,10 @@ const draftSchema = z.object({
   serverUpdatedAt: z.string(),
 });
 
-export type Draft = z.infer<typeof draftSchema>;
+export type { Draft };
 
 function draftKey(actionId: number): string {
-  return `${DRAFT_KEY_PREFIX}${actionId}`;
+  return `${DRAFT_KEY_PREFIX}${String(actionId)}`;
 }
 
 export function saveDraft(actionId: number, draft: Draft): void {

@@ -1,7 +1,7 @@
 import type { Action } from "@/features/actions/types";
 import { useCloseAction, useReopenAction } from "@/features/actions/hooks/use-actions";
 
-export function CompletionToggle({ action }: { action: Action }) {
+export function CompletionToggle({ action }: { action: Action }): React.JSX.Element {
   const closeAction = useCloseAction();
   const reopenAction = useReopenAction();
   const isPending = closeAction.isPending || reopenAction.isPending;

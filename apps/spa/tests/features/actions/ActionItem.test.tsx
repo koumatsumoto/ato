@@ -134,7 +134,8 @@ describe("ActionItem", () => {
         </MemoryRouter>,
       );
 
-      const row = container.querySelector("[role='button']")!;
+      const row = container.querySelector("[role='button']");
+      if (!row) throw new Error("Expected row element");
       expect(row.className).toContain("opacity-50");
     });
 
@@ -179,7 +180,8 @@ describe("ActionItem", () => {
         </MemoryRouter>,
       );
 
-      const row = container.querySelector("[role='button']")!;
+      const row = container.querySelector("[role='button']");
+      if (!row) throw new Error("Expected row element");
       expect(row).toHaveAttribute("aria-disabled", "true");
     });
   });
