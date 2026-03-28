@@ -37,3 +37,7 @@
 .animate-fadeOut {
   animation: fadeOut 0.3s ease-in forwards;
 }
+
+.animate-fadeIn-delay {
+  animation: fadeIn 0.2s ease-out 0.05s both;
+}

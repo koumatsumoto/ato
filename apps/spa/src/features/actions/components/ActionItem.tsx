@@ -43,7 +43,7 @@ export function ActionItem({ action }: { readonly action: Action }) {
         {action.title}
       </span>
       {action.labels.length > 0 && (
-        <div className="flex max-w-[40%] shrink-0 items-center gap-1">
+        <div className="flex max-w-[40%] shrink-0 items-center gap-1.5">
           {action.labels.slice(0, 3).map((label) => (
             <span key={label} className="truncate rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
               {label}

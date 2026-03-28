@@ -12,7 +12,7 @@ export function Header() {
   useClickOutside(menuRef, handleCloseMenu);
 
   return (
-    <header className="bg-white px-4 py-3 shadow">
+    <header className="bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
       <div className="mx-auto flex max-w-2xl items-center justify-between">
         <h1 className="text-lg font-semibold">
           <Link to="/" className="flex items-center gap-2">

@@ -53,7 +53,7 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
   }
 
   return (
-    <div className="animate-fadeIn space-y-2 py-2">
+    <div className="animate-fadeIn space-y-3 py-2">
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <svg
@@ -84,13 +84,26 @@ export function SearchPanel({ onSearchChange }: SearchPanelProps) {
           </svg>
         </button>
       </div>
-      <div className="pl-2">
+      <div className="animate-fadeIn-delay space-y-2 pl-3">
         <LabelFilter selectedLabel={labelFilter} onChange={handleLabelFilterChange} />
+        <button
+          type="button"
+          onClick={() => handleIncludeCompletedChange(!includeCompleted)}
+          className="flex items-center gap-2 text-sm text-gray-500"
+        >
+          <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {includeCompleted ? (
+              <>
+                <circle cx="12" cy="12" r="10" fill="#85d5b2" />
+                <path d="m8.5 12.5 2.5 2.5 5-5" stroke="white" strokeWidth={2} fill="none" />
+              </>
+            ) : (
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth={1.5} />
+            )}
+          </svg>
+          完了を表示
+        </button>
       </div>
-      <label className="flex items-center gap-2 pl-2 text-sm text-gray-500">
-        <input type="checkbox" checked={includeCompleted} onChange={(e) => handleIncludeCompletedChange(e.target.checked)} className="rounded" />
-        完了を表示
-      </label>
     </div>
   );
 }

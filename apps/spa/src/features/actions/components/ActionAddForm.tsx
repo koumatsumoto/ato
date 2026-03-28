@@ -27,11 +27,14 @@ export function ActionAddForm() {
     }
   };
 
-  const placeholder = isFocused ? "新しいやることを入力してください" : "やることを追加";
+  const placeholder = isFocused ? "やることを入力してください" : "やることを追加";
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.1)]" style={{ paddingBottom: "var(--sab)" }}>
-      <form onSubmit={handleSubmit} className="mx-auto max-w-2xl px-4 py-3">
+    <div
+      className="fixed bottom-0 left-0 right-0 border-t border-gray-100 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.08)]"
+      style={{ paddingBottom: "var(--sab)" }}
+    >
+      <form onSubmit={handleSubmit} className="mx-auto max-w-2xl px-4 py-3.5">
         {validationError && <p className="mb-1 text-sm text-red-600">{validationError}</p>}
         <div className="flex gap-2">
           <input
@@ -45,14 +48,14 @@ export function ActionAddForm() {
             onFocus={() => setIsFocused(true)}
             onBlur={handleBlur}
             placeholder={placeholder}
-            className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:border-blue-500 focus:bg-white focus:outline-none"
+            className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none"
             maxLength={256}
           />
           {isFocused && (
             <button
               type="submit"
               disabled={!title.trim() || createAction.isPending}
-              className="shrink-0 rounded-lg bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
+              className="shrink-0 rounded-lg bg-blue-500 px-4 py-2.5 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
             >
               追加
             </button>

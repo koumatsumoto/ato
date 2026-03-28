@@ -68,8 +68,8 @@ export function SharePage() {
         )}
         {status === "success" && (
           <>
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-              <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+              <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
