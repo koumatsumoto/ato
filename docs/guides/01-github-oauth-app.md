@@ -23,5 +23,6 @@ ATO の認証は `gh-auth-bridge` が仲介する GitHub App を利用する。A
 ## ATO 側の注意点
 
 - `src/features/actions/components/SetupGuide.tsx` の install URL は App slug に依存する
+- 現在の想定 install URL は `https://github.com/apps/gh-auth-bridge/installations/new`
 - App 名や slug を変える場合は、この定数を更新する
 - callback URL は `gh-auth-bridge` の本番 Worker URL と一致させる

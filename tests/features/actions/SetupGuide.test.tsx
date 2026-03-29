@@ -22,8 +22,8 @@ describe("SetupGuide", () => {
   it("renders GitHub App installation link with correct URL", () => {
     render(<SetupGuide />);
 
-    const link = screen.getByRole("link", { name: /ATO App をインストール/ });
-    expect(link).toHaveAttribute("href", "https://github.com/apps/ato-app/installations/new");
+    const link = screen.getByRole("link", { name: /gh-auth-bridge App をインストール/ });
+    expect(link).toHaveAttribute("href", "https://github.com/apps/gh-auth-bridge/installations/new");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
