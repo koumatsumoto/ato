@@ -119,6 +119,9 @@ export async function refreshAccessToken(proxyUrl: string, refreshToken: string)
   }
 
   const data = (await response.json()) as unknown as RefreshResponse;
+  if (typeof data.accessToken !== "string" || !data.accessToken) {
+    throw new TokenRefreshError("transient", "Invalid refresh response: missing accessToken");
+  }
   const now = Date.now();
   return {
     accessToken: data.accessToken,

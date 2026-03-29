@@ -296,6 +296,15 @@ describe("refreshAccessToken", () => {
     expect((error as TokenRefreshError).reason).toBe("transient");
   });
 
+  it("throws TokenRefreshError when refresh response is missing accessToken", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ refreshToken: "new-refresh" }), { status: 200 }));
+
+    const error = await refreshAccessToken("https://proxy.example.com", "token").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TokenRefreshError);
+    expect((error as TokenRefreshError).reason).toBe("transient");
+    expect((error as Error).message).toContain("missing accessToken");
+  });
+
   it("throws TokenRefreshError with transient on network error", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
 
