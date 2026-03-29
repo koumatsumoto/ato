@@ -6,7 +6,7 @@ describe("ensureRepository", () => {
 
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem("ato:token", "test-token");
+    localStorage.setItem("gh-auth-bridge:token", "test-token");
   });
 
   afterEach(() => {

@@ -32,8 +32,8 @@ export function getRefreshToken(): string | null {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
-export const TOKEN_CLEARED_EVENT = "ato:token-cleared";
-export const TOKEN_REFRESHED_EVENT = "ato:token-refreshed";
+export const TOKEN_CLEARED_EVENT = "gh-auth-bridge:token-cleared";
+export const TOKEN_REFRESHED_EVENT = "gh-auth-bridge:token-refreshed";
 
 export function clearAccessToken(): void {
   const hadToken = localStorage.getItem(TOKEN_KEY) !== null;

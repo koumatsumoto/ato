@@ -21,7 +21,7 @@ describe("token-store", () => {
     });
 
     it("returns the stored token", () => {
-      localStorage.setItem("ato:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
       expect(getToken()).toBe("test-token");
     });
   });
@@ -29,7 +29,7 @@ describe("token-store", () => {
   describe("setToken", () => {
     it("stores token in localStorage", () => {
       setToken("new-token");
-      expect(localStorage.getItem("ato:token")).toBe("new-token");
+      expect(localStorage.getItem("gh-auth-bridge:token")).toBe("new-token");
     });
   });
 
@@ -41,10 +41,10 @@ describe("token-store", () => {
         expiresAt: 1700000000000,
         refreshExpiresAt: 1710000000000,
       });
-      expect(localStorage.getItem("ato:token")).toBe("access-123");
-      expect(localStorage.getItem("ato:refresh-token")).toBe("refresh-456");
-      expect(localStorage.getItem("ato:token-expires-at")).toBe("1700000000000");
-      expect(localStorage.getItem("ato:refresh-expires-at")).toBe("1710000000000");
+      expect(localStorage.getItem("gh-auth-bridge:token")).toBe("access-123");
+      expect(localStorage.getItem("gh-auth-bridge:refresh-token")).toBe("refresh-456");
+      expect(localStorage.getItem("gh-auth-bridge:token-expires-at")).toBe("1700000000000");
+      expect(localStorage.getItem("gh-auth-bridge:refresh-expires-at")).toBe("1710000000000");
     });
 
     it("dispatches TOKEN_REFRESHED_EVENT", () => {
@@ -70,10 +70,10 @@ describe("token-store", () => {
         expiresAt: undefined,
         refreshExpiresAt: undefined,
       });
-      expect(localStorage.getItem("ato:token")).toBe("access-only");
-      expect(localStorage.getItem("ato:refresh-token")).toBeNull();
-      expect(localStorage.getItem("ato:token-expires-at")).toBeNull();
-      expect(localStorage.getItem("ato:refresh-expires-at")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:token")).toBe("access-only");
+      expect(localStorage.getItem("gh-auth-bridge:refresh-token")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:token-expires-at")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:refresh-expires-at")).toBeNull();
     });
   });
 
@@ -83,43 +83,43 @@ describe("token-store", () => {
     });
 
     it("returns the stored refresh token", () => {
-      localStorage.setItem("ato:refresh-token", "refresh-abc");
+      localStorage.setItem("gh-auth-bridge:refresh-token", "refresh-abc");
       expect(getRefreshToken()).toBe("refresh-abc");
     });
   });
 
   describe("clearToken", () => {
     it("removes token from localStorage", () => {
-      localStorage.setItem("ato:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
       clearToken();
-      expect(localStorage.getItem("ato:token")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:token")).toBeNull();
     });
 
     it("removes refresh token from localStorage", () => {
-      localStorage.setItem("ato:token", "test-token");
-      localStorage.setItem("ato:refresh-token", "refresh-token");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:refresh-token", "refresh-token");
       clearToken();
-      expect(localStorage.getItem("ato:refresh-token")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:refresh-token")).toBeNull();
     });
 
     it("removes expiry timestamps from localStorage", () => {
-      localStorage.setItem("ato:token", "test-token");
-      localStorage.setItem("ato:token-expires-at", "1700000000000");
-      localStorage.setItem("ato:refresh-expires-at", "1710000000000");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:token-expires-at", "1700000000000");
+      localStorage.setItem("gh-auth-bridge:refresh-expires-at", "1710000000000");
       clearToken();
-      expect(localStorage.getItem("ato:token-expires-at")).toBeNull();
-      expect(localStorage.getItem("ato:refresh-expires-at")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:token-expires-at")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:refresh-expires-at")).toBeNull();
     });
 
     it("removes user cache from localStorage", () => {
-      localStorage.setItem("ato:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
       localStorage.setItem("ato:user", '{"login":"user"}');
       clearToken();
       expect(localStorage.getItem("ato:user")).toBeNull();
     });
 
     it("removes repo-initialized flag from localStorage", () => {
-      localStorage.setItem("ato:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
       localStorage.setItem("ato:repo-initialized", "true");
       clearToken();
       expect(localStorage.getItem("ato:repo-initialized")).toBeNull();
@@ -128,41 +128,41 @@ describe("token-store", () => {
 
   describe("clearAccessToken", () => {
     it("removes access token but preserves refresh token", () => {
-      localStorage.setItem("ato:token", "test-token");
-      localStorage.setItem("ato:refresh-token", "refresh-token");
-      localStorage.setItem("ato:token-expires-at", "1700000000000");
-      localStorage.setItem("ato:refresh-expires-at", "1710000000000");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:refresh-token", "refresh-token");
+      localStorage.setItem("gh-auth-bridge:token-expires-at", "1700000000000");
+      localStorage.setItem("gh-auth-bridge:refresh-expires-at", "1710000000000");
       localStorage.setItem("ato:user", '{"login":"user"}');
       localStorage.setItem("ato:repo-initialized", "true");
       clearAccessToken();
-      expect(localStorage.getItem("ato:token")).toBeNull();
-      expect(localStorage.getItem("ato:token-expires-at")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:token")).toBeNull();
+      expect(localStorage.getItem("gh-auth-bridge:token-expires-at")).toBeNull();
       expect(localStorage.getItem("ato:user")).toBeNull();
       expect(localStorage.getItem("ato:repo-initialized")).toBeNull();
-      expect(localStorage.getItem("ato:refresh-token")).toBe("refresh-token");
-      expect(localStorage.getItem("ato:refresh-expires-at")).toBe("1710000000000");
+      expect(localStorage.getItem("gh-auth-bridge:refresh-token")).toBe("refresh-token");
+      expect(localStorage.getItem("gh-auth-bridge:refresh-expires-at")).toBe("1710000000000");
     });
 
     it("does not dispatch event when no token existed", () => {
       const handler = vi.fn();
-      window.addEventListener("ato:token-cleared", handler);
+      window.addEventListener("gh-auth-bridge:token-cleared", handler);
       try {
         clearAccessToken();
         expect(handler).not.toHaveBeenCalled();
       } finally {
-        window.removeEventListener("ato:token-cleared", handler);
+        window.removeEventListener("gh-auth-bridge:token-cleared", handler);
       }
     });
 
     it("dispatches TOKEN_CLEARED_EVENT when token existed", () => {
-      localStorage.setItem("ato:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
       const handler = vi.fn();
-      window.addEventListener("ato:token-cleared", handler);
+      window.addEventListener("gh-auth-bridge:token-cleared", handler);
       try {
         clearAccessToken();
         expect(handler).toHaveBeenCalledTimes(1);
       } finally {
-        window.removeEventListener("ato:token-cleared", handler);
+        window.removeEventListener("gh-auth-bridge:token-cleared", handler);
       }
     });
   });
@@ -173,7 +173,7 @@ describe("token-store", () => {
     });
 
     it("returns true when token exists", () => {
-      localStorage.setItem("ato:token", "test-token");
+      localStorage.setItem("gh-auth-bridge:token", "test-token");
       expect(isAuthenticated()).toBe(true);
     });
   });

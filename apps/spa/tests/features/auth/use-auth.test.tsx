@@ -27,7 +27,7 @@ describe("useAuth", () => {
   });
 
   it("fetches user info when token exists", async () => {
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem("gh-auth-bridge:token", "valid-token");
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -57,7 +57,7 @@ describe("useAuth", () => {
 
   it("clears token after retries exhausted on persistent 401", async () => {
     vi.useFakeTimers();
-    localStorage.setItem("ato:token", "expired-token");
+    localStorage.setItem("gh-auth-bridge:token", "expired-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
@@ -68,7 +68,7 @@ describe("useAuth", () => {
 
     expect(result.current.state.token).toBeNull();
     expect(result.current.state.user).toBeNull();
-    expect(localStorage.getItem("ato:token")).toBeNull();
+    expect(localStorage.getItem("gh-auth-bridge:token")).toBeNull();
   });
 
   it("recovers from 401 when refresh token is available", async () => {
@@ -76,8 +76,8 @@ describe("useAuth", () => {
     const envModule = await import("@/shared/lib/env");
     vi.spyOn(envModule, "getOAuthProxyUrl").mockReturnValue("http://localhost:8787");
 
-    localStorage.setItem("ato:token", "expired-token");
-    localStorage.setItem("ato:refresh-token", "valid-refresh");
+    localStorage.setItem("gh-auth-bridge:token", "expired-token");
+    localStorage.setItem("gh-auth-bridge:refresh-token", "valid-refresh");
 
     const mockFetch = vi.fn();
     // First call: githubFetch gets 401
@@ -95,12 +95,12 @@ describe("useAuth", () => {
     await waitFor(() => {
       expect(result.current.state.user?.login).toBe("testuser");
     });
-    expect(localStorage.getItem("ato:token")).toBe("new-token");
+    expect(localStorage.getItem("gh-auth-bridge:token")).toBe("new-token");
   });
 
   it("does not clear token on 500 server error", async () => {
     vi.useFakeTimers();
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem("gh-auth-bridge:token", "valid-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "Internal Server Error" }), { status: 500 }));
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
@@ -110,12 +110,12 @@ describe("useAuth", () => {
     });
 
     expect(result.current.state.token).toBe("valid-token");
-    expect(localStorage.getItem("ato:token")).toBe("valid-token");
+    expect(localStorage.getItem("gh-auth-bridge:token")).toBe("valid-token");
   });
 
   it("does not clear token on 503 service unavailable", async () => {
     vi.useFakeTimers();
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem("gh-auth-bridge:token", "valid-token");
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "Service Unavailable" }), { status: 503 }));
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
@@ -125,11 +125,11 @@ describe("useAuth", () => {
     });
 
     expect(result.current.state.token).toBe("valid-token");
-    expect(localStorage.getItem("ato:token")).toBe("valid-token");
+    expect(localStorage.getItem("gh-auth-bridge:token")).toBe("valid-token");
   });
 
   it("logout clears all auth state", async () => {
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem("gh-auth-bridge:token", "valid-token");
     localStorage.setItem("ato:user", '{"login":"user"}');
     localStorage.setItem("ato:repo-initialized", "true");
 
@@ -148,13 +148,13 @@ describe("useAuth", () => {
     });
 
     expect(result.current.state.token).toBeNull();
-    expect(localStorage.getItem("ato:token")).toBeNull();
+    expect(localStorage.getItem("gh-auth-bridge:token")).toBeNull();
     expect(localStorage.getItem("ato:user")).toBeNull();
     expect(localStorage.getItem("ato:repo-initialized")).toBeNull();
   });
 
   it("updates React state when TOKEN_REFRESHED_EVENT is dispatched", async () => {
-    localStorage.setItem("ato:token", "old-token");
+    localStorage.setItem("gh-auth-bridge:token", "old-token");
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(new Response(JSON.stringify({ login: "user", id: 1, avatar_url: "https://example.com/avatar" }), { status: 200 }));
@@ -168,7 +168,7 @@ describe("useAuth", () => {
     expect(result.current.state.token).toBe("old-token");
 
     act(() => {
-      localStorage.setItem("ato:token", "refreshed-token");
+      localStorage.setItem("gh-auth-bridge:token", "refreshed-token");
       window.dispatchEvent(new Event(TOKEN_REFRESHED_EVENT));
     });
 
@@ -176,7 +176,7 @@ describe("useAuth", () => {
   });
 
   it("clears state when TOKEN_CLEARED_EVENT is dispatched externally", async () => {
-    localStorage.setItem("ato:token", "valid-token");
+    localStorage.setItem("gh-auth-bridge:token", "valid-token");
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(new Response(JSON.stringify({ login: "user", id: 1, avatar_url: "https://example.com/avatar" }), { status: 200 }));
@@ -192,6 +192,6 @@ describe("useAuth", () => {
     });
 
     expect(result.current.state.token).toBeNull();
-    expect(localStorage.getItem("ato:token")).toBeNull();
+    expect(localStorage.getItem("gh-auth-bridge:token")).toBeNull();
   });
 });

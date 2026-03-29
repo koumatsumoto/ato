@@ -8,16 +8,15 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
-    "dev": "concurrently -n spa,proxy -c blue,green \"pnpm dev:spa\" \"pnpm dev:proxy\"",
+    "dev": "pnpm dev:spa",
     "dev:spa": "pnpm --filter @ato/spa dev",
-    "dev:proxy": "pnpm --filter @ato/oauth-proxy dev",
     "build": "pnpm --filter @ato/spa build",
-    "test": "pnpm --filter @ato/spa test && pnpm --filter @ato/oauth-proxy test",
-    "lint": "pnpm --filter @ato/spa lint && pnpm --filter @ato/oauth-proxy lint",
+    "test": "pnpm --filter @ato/spa test",
+    "lint": "pnpm --filter @ato/spa lint",
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json}\"",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
-    "typecheck": "pnpm --filter @ato/spa typecheck && pnpm --filter @ato/oauth-proxy typecheck",
+    "typecheck": "pnpm --filter @ato/spa typecheck",
     "prepare": "husky"
   },
   "prettier": {
@@ -26,10 +25,6 @@
   "lint-staged": {
     "apps/spa/**/*.{ts,tsx}": [
       "pnpm --filter @ato/spa exec eslint --fix",
-      "prettier --write"
-    ],
-    "apps/oauth-proxy/**/*.ts": [
-      "pnpm --filter @ato/oauth-proxy exec eslint --fix",
       "prettier --write"
     ],
     "**/*.json": [
@@ -55,7 +50,6 @@
     }
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
     "husky": "^9",
     "lint-staged": "^16",
     "markdownlint-cli": "^0.43",

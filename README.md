@@ -4,10 +4,9 @@
 
 ## アーキテクチャ
 
-| パッケージ         | 説明               | デプロイ先         |
-| ------------------ | ------------------ | ------------------ |
-| `apps/spa`         | React 19 SPA       | GitHub Pages       |
-| `apps/oauth-proxy` | GitHub OAuth Proxy | Cloudflare Workers |
+| パッケージ | 説明         | デプロイ先   |
+| ---------- | ------------ | ------------ |
+| `apps/spa` | React 19 SPA | GitHub Pages |
 
 ## 必要環境
 
@@ -19,17 +18,16 @@
 ```bash
 git clone <repo-url> && cd ato
 pnpm install
-cp apps/oauth-proxy/.dev.vars.example apps/oauth-proxy/.dev.vars
-# .dev.vars を編集: GitHub App の設定値を入力
 ```
+
+認証基盤は公開リポジトリ [`gh-auth-bridge`](https://github.com/koumatsumoto/gh-auth-bridge) の Cloudflare Worker を利用する。
 
 ## 開発コマンド
 
 ```bash
-pnpm dev              # SPA + OAuth Proxy を同時起動
+pnpm dev              # SPA のみ (http://localhost:5173)
 
 pnpm dev:spa          # SPA のみ (http://localhost:5173)
-pnpm dev:proxy        # OAuth Proxy のみ (http://localhost:8787)
 
 pnpm typecheck        # TypeScript 型チェック
 pnpm lint             # Lint
@@ -44,7 +42,6 @@ pnpm format           # フォーマット
 ato/
   apps/
     spa/              # React 19 SPA (Vite 6 + TailwindCSS 4)
-    oauth-proxy/      # Cloudflare Workers OAuth Proxy
   docs/
     specs/            # 設計仕様書
 ```

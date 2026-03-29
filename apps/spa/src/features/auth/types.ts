@@ -24,7 +24,7 @@ export interface TokenSet {
 }
 
 export interface OAuthSuccessMessage {
-  readonly type: "ato:auth:success";
+  readonly type: "gh-auth-bridge:auth:success";
   readonly accessToken: string;
   readonly refreshToken?: string | undefined;
   readonly expiresIn?: number | undefined;
@@ -32,7 +32,7 @@ export interface OAuthSuccessMessage {
 }
 
 export interface OAuthErrorMessage {
-  readonly type: "ato:auth:error";
+  readonly type: "gh-auth-bridge:auth:error";
   readonly error: string;
 }
 

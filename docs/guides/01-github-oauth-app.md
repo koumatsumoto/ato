@@ -1,77 +1,27 @@
 # GitHub App 設定ガイド
 
-> ファイル名は互換のため `01-github-oauth-app.md` のまま維持しているが、現行運用は GitHub App 前提。
+ATO の認証は `gh-auth-bridge` が仲介する GitHub App を利用する。App 自体の設定責務は `gh-auth-bridge` repo にあるが、ATO が依存する前提をここに残す。
 
-## 概要
+## 必須設定
 
-ATO は GitHub App ベースで認証する。
-このガイドでは、OAuth Proxy (`/auth/callback`) へ戻すための GitHub App 設定を行う。
+| 項目         | 開発例                                | 本番例                                                         |
+| ------------ | ------------------------------------- | -------------------------------------------------------------- |
+| Homepage URL | `http://localhost:5173`               | `https://koumatsumoto.github.io/ato`                           |
+| Callback URL | `http://localhost:8787/auth/callback` | `https://gh-auth-bridge.<subdomain>.workers.dev/auth/callback` |
 
----
-
-## 1. GitHub App を作成
-
-GitHub > Settings > Developer settings > GitHub Apps > New GitHub App
-
-### 必須設定
-
-| 項目         | 開発例                                | 本番例                                                    |
-| ------------ | ------------------------------------- | --------------------------------------------------------- |
-| App name     | `ATO (dev)`                           | `ATO`                                                     |
-| Homepage URL | `http://localhost:5173`               | `https://<user>.github.io/ato`                            |
-| Callback URL | `http://localhost:8787/auth/callback` | `https://ato-oauth.<subdomain>.workers.dev/auth/callback` |
-
-### 権限
+## 権限
 
 - Repository permissions: `Issues` = Read and write
-- Metadata は既定の Read-only
-
-### 追加オプション
-
+- Metadata = Read-only
 - `Request user authorization (OAuth) during installation` を有効化
 
----
+## インストール対象
 
-## 2. Client ID / Client Secret を取得
+- `ato-datastore`
+- `zai-datastore`
 
-作成後の画面で以下を控える。
+## ATO 側の注意点
 
-- Client ID
-- Client Secret (再表示不可)
-
----
-
-## 3. 開発環境へ設定
-
-`apps/oauth-proxy/.dev.vars`:
-
-```ini
-GITHUB_CLIENT_ID=<Client ID>
-GITHUB_CLIENT_SECRET=<Client Secret>
-SPA_ORIGIN=http://localhost:5173
-```
-
----
-
-## 4. 本番環境へ設定
-
-Cloudflare Workers Secrets:
-
-```bash
-cd apps/oauth-proxy
-npx wrangler secret put GITHUB_CLIENT_ID
-npx wrangler secret put GITHUB_CLIENT_SECRET
-```
-
-`wrangler.toml` の `SPA_ORIGIN` は GitHub Pages origin を指定する。
-
----
-
-## 5. GitHub App インストール
-
-利用する GitHub アカウント/組織にアプリをインストールし、`ato-datastore` へアクセス可能な状態にする。
-
-SPA からは、リポジトリ未設定時に `SetupGuide` でインストール導線を表示する。
-
-実装上の既定リンクは `https://github.com/apps/ato-app/installations/new` で固定されている。
-別名 App を使う場合は `apps/spa/src/features/actions/components/SetupGuide.tsx` の `INSTALL_APP_URL` を更新する。
+- `apps/spa/src/features/actions/components/SetupGuide.tsx` の install URL は App slug に依存する
+- App 名や slug を変える場合は、この定数を更新する
+- callback URL は `gh-auth-bridge` の本番 Worker URL と一致させる

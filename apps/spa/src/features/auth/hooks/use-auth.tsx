@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   useEffect(() => {
     const onVisibilityChange = () => {
       const visible = document.visibilityState === "visible";
-      const hasToken = localStorage.getItem("ato:token") !== null;
+      const hasToken = localStorage.getItem("gh-auth-bridge:token") !== null;
       authLog("visibility", `visible=${String(visible)} localStorage=${String(hasToken)} state=${String(token !== null)}`);
     };
     document.addEventListener("visibilitychange", onVisibilityChange);

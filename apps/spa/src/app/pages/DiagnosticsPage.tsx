@@ -9,7 +9,7 @@ export function DiagnosticsPage(): React.JSX.Element {
   const [, setRefreshKey] = useState(0);
 
   const logs = getAuthLog();
-  const hasTokenInStorage = localStorage.getItem("ato:token") !== null;
+  const hasTokenInStorage = localStorage.getItem("gh-auth-bridge:token") !== null;
   const hasTokenInState = state.token !== null;
 
   const handleRefresh = () => {

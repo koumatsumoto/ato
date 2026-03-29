@@ -25,13 +25,13 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
-        data: { type: "ato:auth:success", accessToken: "token-123" },
+        data: { type: "gh-auth-bridge:auth:success", accessToken: "token-123" },
       }),
     );
 
     await promise;
 
-    expect(window.open).toHaveBeenCalledWith("https://proxy.example.com/auth/login", "ato-login", "width=600,height=700");
+    expect(window.open).toHaveBeenCalledWith("https://proxy.example.com/auth/login", "gh-auth-bridge-login", "width=600,height=700");
   });
 
   it("resolves with TokenSet on success message", async () => {
@@ -43,7 +43,7 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
-        data: { type: "ato:auth:success", accessToken: "my-token" },
+        data: { type: "gh-auth-bridge:auth:success", accessToken: "my-token" },
       }),
     );
 
@@ -65,7 +65,7 @@ describe("openLoginPopup", () => {
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
         data: {
-          type: "ato:auth:success",
+          type: "gh-auth-bridge:auth:success",
           accessToken: "access-123",
           refreshToken: "refresh-456",
           expiresIn: 28800,
@@ -90,7 +90,7 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
-        data: { type: "ato:auth:error", error: "invalid_state" },
+        data: { type: "gh-auth-bridge:auth:error", error: "invalid_state" },
       }),
     );
 
@@ -107,7 +107,7 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://evil.example.com",
-        data: { type: "ato:auth:success", accessToken: "stolen" },
+        data: { type: "gh-auth-bridge:auth:success", accessToken: "stolen" },
       }),
     );
 
@@ -115,7 +115,7 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
-        data: { type: "ato:auth:success", accessToken: "real-token" },
+        data: { type: "gh-auth-bridge:auth:success", accessToken: "real-token" },
       }),
     );
 
@@ -163,7 +163,7 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
-        data: { type: "ato:auth:success", accessToken: "token" },
+        data: { type: "gh-auth-bridge:auth:success", accessToken: "token" },
       }),
     );
 
@@ -196,7 +196,7 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
-        data: { type: "ato:auth:success", accessToken: "token-normalized" },
+        data: { type: "gh-auth-bridge:auth:success", accessToken: "token-normalized" },
       }),
     );
 
@@ -218,7 +218,7 @@ describe("openLoginPopup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: "https://proxy.example.com",
-        data: { type: "ato:auth:success", accessToken: "late-token" },
+        data: { type: "gh-auth-bridge:auth:success", accessToken: "late-token" },
       }),
     );
   });

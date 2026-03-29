@@ -16,7 +16,7 @@ function createSettleGuard(cleanup: () => void): (action: SettleAction) => void 
   };
 }
 
-function toTokenSet(data: OAuthMessage & { type: "ato:auth:success" }): TokenSet {
+function toTokenSet(data: OAuthMessage & { type: "gh-auth-bridge:auth:success" }): TokenSet {
   const now = Date.now();
   return {
     accessToken: data.accessToken,
@@ -28,7 +28,7 @@ function toTokenSet(data: OAuthMessage & { type: "ato:auth:success" }): TokenSet
 
 export function openLoginPopup(proxyUrl: string): Promise<TokenSet> {
   return new Promise((resolve, reject) => {
-    const popup = window.open(`${proxyUrl}/auth/login`, "ato-login", "width=600,height=700");
+    const popup = window.open(`${proxyUrl}/auth/login`, "gh-auth-bridge-login", "width=600,height=700");
     if (!popup) {
       reject(new Error("Popup blocked. Please allow popups for this site."));
       return;
@@ -47,13 +47,13 @@ export function openLoginPopup(proxyUrl: string): Promise<TokenSet> {
     const handler = (event: MessageEvent<OAuthMessage>) => {
       if (event.origin !== expectedOrigin) return;
       const { data } = event;
-      if (data.type === "ato:auth:success") {
+      if (data.type === "gh-auth-bridge:auth:success") {
         settle(() => {
           popup.close();
           resolve(toTokenSet(data));
         });
       }
-      if (data.type === "ato:auth:error") {
+      if (data.type === "gh-auth-bridge:auth:error") {
         settle(() => {
           popup.close();
           reject(new Error(data.error));
