@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { consumeRedirectPath } from "@/features/auth/components/AuthGuard";
+import { consumeRedirectPath } from "@/features/auth/lib/redirect-path";
 
 export function LoginPage(): React.JSX.Element {
   const { state, login } = useAuth();

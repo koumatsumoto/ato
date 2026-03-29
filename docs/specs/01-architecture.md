@@ -4,7 +4,7 @@ ATO は GitHub Pages 上の SPA と、外部認証基盤 `gh-auth-bridge` で構
 
 ## 構成
 
-- `apps/spa`: アプリケーション UI と GitHub API 呼び出し
+- `src/`: アプリケーション UI と GitHub API 呼び出し
 - `gh-auth-bridge`: GitHub OAuth callback / refresh を仲介する Cloudflare Worker
 - `ato-datastore`: 永続化先の private GitHub repository
 

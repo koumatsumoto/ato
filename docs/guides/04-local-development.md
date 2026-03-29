@@ -8,7 +8,7 @@
 ## 手順
 
 1. ATO の依存をインストールする
-2. `apps/spa/.env` に `VITE_OAUTH_PROXY_URL=http://localhost:8787` を設定する
+2. `.env` に `VITE_OAUTH_PROXY_URL=http://localhost:8787` を設定する
 3. `gh-auth-bridge` 側で `.dev.vars` を設定し `pnpm dev` を起動する
 4. ATO 側で `pnpm dev` を起動する
 

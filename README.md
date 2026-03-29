@@ -1,12 +1,13 @@
 # ATO
 
-あとでやることを残すメモアプリ。GitHub Issues をバックエンドに使用。
+あとでやることを残すメモアプリ。GitHub Issues をバックエンドに使用する single-app repository。
 
 ## アーキテクチャ
 
-| パッケージ | 説明         | デプロイ先   |
-| ---------- | ------------ | ------------ |
-| `apps/spa` | React 19 SPA | GitHub Pages |
+| コンポーネント   | 説明                     | デプロイ先         |
+| ---------------- | ------------------------ | ------------------ |
+| `src/`           | React 19 SPA             | GitHub Pages       |
+| `gh-auth-bridge` | 共有 GitHub OAuth bridge | Cloudflare Workers |
 
 ## 必要環境
 
@@ -20,28 +21,28 @@ git clone <repo-url> && cd ato
 pnpm install
 ```
 
-認証基盤は公開リポジトリ [`gh-auth-bridge`](https://github.com/koumatsumoto/gh-auth-bridge) の Cloudflare Worker を利用する。
+認証基盤は公開リポジトリ
+[`gh-auth-bridge`](https://github.com/koumatsumoto/gh-auth-bridge)
+の Cloudflare Worker を利用する。
 
 ## 開発コマンド
 
 ```bash
-pnpm dev              # SPA のみ (http://localhost:5173)
-
-pnpm dev:spa          # SPA のみ (http://localhost:5173)
-
-pnpm typecheck        # TypeScript 型チェック
-pnpm lint             # Lint
-pnpm test             # テスト
-pnpm build            # ビルド
-pnpm format           # フォーマット
+pnpm dev
+pnpm build
+pnpm test
+pnpm test:coverage
+pnpm lint
+pnpm typecheck
+pnpm format
 ```
 
 ## プロジェクト構成
 
 ```text
 ato/
-  apps/
-    spa/              # React 19 SPA (Vite 6 + TailwindCSS 4)
-  docs/
-    specs/            # 設計仕様書
+  src/            # React 19 SPA
+  tests/          # Vitest
+  public/         # 静的アセット
+  docs/           # 設計メモと運用ガイド
 ```

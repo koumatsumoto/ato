@@ -1,6 +1,8 @@
 # ATO - あとでやることを残すメモアプリ
 
-GitHub Issues をバックエンドに使うメモアプリ。認証基盤は公開リポジトリ [`gh-auth-bridge`](https://github.com/koumatsumoto/gh-auth-bridge) の Cloudflare Worker を共有利用する。
+GitHub Issues をバックエンドに使うメモアプリ。認証基盤は公開リポジトリ
+[`gh-auth-bridge`](https://github.com/koumatsumoto/gh-auth-bridge)
+の Cloudflare Worker を共有利用する。
 
 ## テックスタック
 
@@ -17,12 +19,11 @@ GitHub Issues をバックエンドに使うメモアプリ。認証基盤は公
 
 ```text
 ato/
-├── apps/
-│   └── spa/                  # React SPA (GitHub Pages)
+├── src/
+├── tests/
+├── public/
 ├── docs/
-│   ├── specs/
-│   └── guides/
-└── .github/workflows/        # ci.yml, deploy-spa.yml
+└── .github/workflows/
 ```
 
 ## 開発コマンド
@@ -37,7 +38,8 @@ pnpm format           # Prettier
 pnpm lint:md          # Markdownlint
 ```
 
-`gh-auth-bridge` をローカルで併走する場合は、別 repo 側で `pnpm dev` を実行し、`apps/spa/.env` の `VITE_OAUTH_PROXY_URL` をその Worker URL に向ける。
+`gh-auth-bridge` をローカルで併走する場合は、別 repo 側で `pnpm dev` を実行し、
+`.env` の `VITE_OAUTH_PROXY_URL` をその Worker URL に向ける。
 
 ## 認証フロー
 
@@ -61,30 +63,31 @@ ATO 固有 key:
 
 ## 重要ファイル
 
-| 機能               | ファイル                                              |
-| ------------------ | ----------------------------------------------------- |
-| 認証コンテキスト   | `apps/spa/src/features/auth/hooks/use-auth.tsx`       |
-| OAuth クライアント | `apps/spa/src/features/auth/lib/auth-client.ts`       |
-| トークン保存       | `apps/spa/src/features/auth/lib/token-store.ts`       |
-| ルート保護         | `apps/spa/src/features/auth/components/AuthGuard.tsx` |
-| GitHub API         | `apps/spa/src/shared/lib/github-client.ts`            |
-| 環境変数           | `apps/spa/src/shared/lib/env.ts`                      |
+| 機能               | ファイル                                     |
+| ------------------ | -------------------------------------------- |
+| 認証コンテキスト   | `src/features/auth/hooks/use-auth.tsx`       |
+| OAuth クライアント | `src/features/auth/lib/auth-client.ts`       |
+| トークン保存       | `src/features/auth/lib/token-store.ts`       |
+| ルート保護         | `src/features/auth/components/AuthGuard.tsx` |
+| GitHub API         | `src/shared/lib/github-client.ts`            |
+| 環境変数           | `src/shared/lib/env.ts`                      |
 
 ## 環境変数
 
-### SPA (`apps/spa/.env`)
+### SPA (`.env`)
 
 ```env
 VITE_OAUTH_PROXY_URL=http://localhost:8787
 ```
 
-本番では GitHub Actions Variable `OAUTH_PROXY_URL` が `VITE_OAUTH_PROXY_URL` に注入される。この値は `gh-auth-bridge` の本番 Worker URL と一致させること。
+本番では GitHub Actions Variable `OAUTH_PROXY_URL` が `VITE_OAUTH_PROXY_URL` に注入される。
+この値は `gh-auth-bridge` の本番 Worker URL と一致させること。
 
 ## テスト
 
 - Vitest 4 + jsdom + MSW 2
-- テスト配置: `apps/spa/tests/**/*.test.{ts,tsx}`
-- セットアップ: `apps/spa/tests/setup.ts`
+- テスト配置: `tests/**/*.test.{ts,tsx}`
+- セットアップ: `tests/setup.ts`
 
 ## CI/CD
 
@@ -98,4 +101,5 @@ VITE_OAUTH_PROXY_URL=http://localhost:8787
 - `@/*` path alias
 - strict TypeScript
 - `erasableSyntaxOnly` 有効
-- localStorage の auth key は `gh-auth-bridge:` prefix を共有用途に限定し、ATO 固有データには使わない
+- localStorage の auth key は `gh-auth-bridge:` prefix を共有用途に限定し、
+  ATO 固有データには使わない
