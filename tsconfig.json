@@ -9,7 +9,6 @@
     "jsx": "react-jsx",
     "declaration": true,
     "sourceMap": true,
-
     "strict": true,
     "erasableSyntaxOnly": true,
     "noUncheckedSideEffectImports": true,
@@ -24,12 +23,18 @@
     "noUnusedParameters": true,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
-
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "incremental": true
+    "incremental": true,
+    "outDir": "./dist",
+    "composite": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
+  "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist", "build"]
 }

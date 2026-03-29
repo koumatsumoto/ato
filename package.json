@@ -1,35 +1,33 @@
 {
-  "name": "@ato/monorepo",
+  "name": "ato",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=24.13.0",
     "pnpm": ">=10.0.0"
   },
   "scripts": {
-    "dev": "concurrently -n spa,proxy -c blue,green \"pnpm dev:spa\" \"pnpm dev:proxy\"",
-    "dev:spa": "pnpm --filter @ato/spa dev",
-    "dev:proxy": "pnpm --filter @ato/oauth-proxy dev",
-    "build": "pnpm --filter @ato/spa build",
-    "test": "pnpm --filter @ato/spa test && pnpm --filter @ato/oauth-proxy test",
-    "lint": "pnpm --filter @ato/spa lint && pnpm --filter @ato/oauth-proxy lint",
+    "dev": "vite",
+    "build": "tsc -b tsconfig.build.json && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json}\"",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
-    "typecheck": "pnpm --filter @ato/spa typecheck && pnpm --filter @ato/oauth-proxy typecheck",
+    "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },
   "prettier": {
     "printWidth": 150
   },
   "lint-staged": {
-    "apps/spa/**/*.{ts,tsx}": [
-      "pnpm --filter @ato/spa exec eslint --fix",
-      "prettier --write"
-    ],
-    "apps/oauth-proxy/**/*.ts": [
-      "pnpm --filter @ato/oauth-proxy exec eslint --fix",
+    "**/*.{ts,tsx}": [
+      "pnpm exec eslint --fix",
       "prettier --write"
     ],
     "**/*.json": [
@@ -54,12 +52,39 @@
       }
     }
   },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@tanstack/react-query": "^5",
+    "@uiball/loaders": "^1.3.1",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-router": "^7",
+    "zod": "^3"
+  },
   "devDependencies": {
-    "concurrently": "^9.2.1",
+    "@tailwindcss/vite": "^4",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6",
+    "@vitest/coverage-v8": "^4",
+    "eslint": "^9",
+    "eslint-plugin-react-hooks": "^5",
+    "eslint-plugin-react-refresh": "^0.4",
     "husky": "^9",
+    "jsdom": "^26",
     "lint-staged": "^16",
     "markdownlint-cli": "^0.43",
+    "msw": "^2",
     "prettier": "^3",
-    "typescript": "catalog:"
+    "tailwindcss": "^4",
+    "typescript": "^6",
+    "typescript-eslint": "^8",
+    "vite": "^8",
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4"
   }
 }

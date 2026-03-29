@@ -1,6 +1,0 @@
-name = "ato-oauth"
-main = "src/index.ts"
-compatibility_date = "2025-01-01"
-
-[vars]
-SPA_ORIGIN = "https://koumatsumoto.github.io"

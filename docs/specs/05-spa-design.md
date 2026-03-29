@@ -2,7 +2,7 @@
 
 ## 概要
 
-`apps/spa` は React 19 + Vite 6 の単一ページアプリケーション。
+ATO は React 19 + Vite 8 の単一ページアプリケーション。
 GitHub Issues をデータソースとし、「やること (Action)」を管理する。
 
 主な責務:
@@ -12,8 +12,6 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 - 検索 (キーワード + ラベル + 完了含む)
 - 共有導線 (`/share`)
 - 診断ログ表示 (`/diagnostics`)
-
----
 
 ## 1. ルーティング
 
@@ -25,15 +23,13 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 | `/diagnostics` | `DiagnosticsPage` | 必須 | 認証ログ診断                       |
 | `/login`       | `LoginPage`       | 不要 | 認証開始                           |
 
-実装: `apps/spa/src/app/router.tsx`
-
----
+実装: `src/app/router.tsx`
 
 ## 2. 画面構成
 
 ### 2.1 MainPage
 
-`apps/spa/src/app/pages/MainPage.tsx`
+`src/app/pages/MainPage.tsx`
 
 - `useOpenActions()` で open 一覧取得
 - 検索入力時は `useSearchActions()` に切替
@@ -43,7 +39,7 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 
 ### 2.2 DetailPage
 
-`apps/spa/src/app/pages/DetailPage.tsx`
+`src/app/pages/DetailPage.tsx`
 
 - `useAction(id)` で単体取得
 - 完了/未完了切替 (`useCloseAction`, `useReopenAction`)
@@ -53,7 +49,7 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 
 ### 2.3 SharePage
 
-`apps/spa/src/app/pages/SharePage.tsx`
+`src/app/pages/SharePage.tsx`
 
 - クエリ (`title`, `text`, `url`) を受けて Action を自動生成
 - タイトルは `読む：...` 形式で 256 文字に制限
@@ -61,19 +57,17 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 
 ### 2.4 DiagnosticsPage
 
-`apps/spa/src/app/pages/DiagnosticsPage.tsx`
+`src/app/pages/DiagnosticsPage.tsx`
 
 - React state と localStorage の token 有無を可視化
 - 認証イベントログ (`auth-log`) を表示/クリア
 - `__APP_VERSION__` を表示
 
----
-
 ## 3. 状態管理
 
 ### 3.1 Query 管理
 
-`apps/spa/src/app/providers.tsx`
+`src/app/providers.tsx`
 
 - QueryClient をアプリ全体で共有
 - `AuthError` / `TokenRefreshError` で token を整理
@@ -84,20 +78,18 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 
 ### 3.2 認証状態
 
-`apps/spa/src/features/auth/hooks/use-auth.tsx`
+`src/features/auth/hooks/use-auth.tsx`
 
 - token は `localStorage` 基準
 - `login()` は popup 認証を実行
 - `logout()` は token 一式削除
 - token clear/refresh イベントで UI を同期
 
----
-
 ## 4. データアクセス
 
 ### 4.1 GitHub API クライアント
 
-`apps/spa/src/shared/lib/github-client.ts`
+`src/shared/lib/github-client.ts`
 
 - 全 API に `Authorization: Bearer` を付与
 - 401 で refresh を試行
@@ -105,7 +97,7 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 
 ### 4.2 Actions API
 
-`apps/spa/src/features/actions/lib/github-api.ts`
+`src/features/actions/lib/github-api.ts`
 
 - `fetchActions` (open/closed + pagination)
 - `createAction`
@@ -115,70 +107,28 @@ GitHub Issues をデータソースとし、「やること (Action)」を管理
 
 ### 4.3 検索 API
 
-`apps/spa/src/features/actions/lib/search-api.ts`
+`src/features/actions/lib/search-api.ts`
 
 - GitHub Search API 利用
 - クエリは `repo:{login}/ato-datastore is:issue ...`
 - ラベル指定時は二重引用符をサニタイズ
 
----
-
-## 5. 入力バリデーション
-
-`apps/spa/src/features/actions/lib/validation.ts`
-
-- title: 1-256
-- memo: 0-65536
-- label: 1-50、空白/カンマ/引用符禁止
-- labels: 最大 10 個、重複不可
-
----
-
-## 6. リポジトリ前提
-
-`ensureRepository(login)` は `GET /repos/{login}/ato-datastore` で存在確認のみ行う。
-
-- 存在すれば `ato:repo-initialized=true` を記録
-- 404 は `RepoNotConfiguredError` を返し、UI でセットアップ導線表示
-
-自動作成は行わない。
-
----
-
-## 7. GitHub Pages 対応
+## 5. GitHub Pages 対応
 
 - `vite.config.ts`: `base: "/ato/"`
 - `public/404.html`: `/ato/?redirect=...` へ遷移
 - `main.tsx`: `redirect` クエリを復元して `history.replaceState`
 
----
-
-## 8. ファイル構成 (主要)
+## 6. ファイル構成
 
 ```text
-apps/spa/src/
+src/
   app/
-    pages/
-      MainPage.tsx
-      DetailPage.tsx
-      SharePage.tsx
-      DiagnosticsPage.tsx
-      LoginPage.tsx
-    router.tsx
-    providers.tsx
   features/
-    actions/
-      components/
-      hooks/
-      lib/
-      types.ts
-    auth/
-      components/
-      hooks/
-      lib/
-      types.ts
   shared/
-    components/
-    hooks/
-    lib/
+
+tests/
+  app/
+  features/
+  shared/
 ```

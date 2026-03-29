@@ -1,174 +1,105 @@
 # ATO - あとでやることを残すメモアプリ
 
-GitHub Issues をバックエンドに使うメモアプリ。1 Issue = 1 やること(Action)。
-用語の詳細は `docs/specs/10-terminology.md` を参照。
+GitHub Issues をバックエンドに使うメモアプリ。認証基盤は公開リポジトリ
+[`gh-auth-bridge`](https://github.com/koumatsumoto/gh-auth-bridge)
+の Cloudflare Worker を共有利用する。
 
 ## テックスタック
 
-| レイヤー       | 技術                                                                               |
-| -------------- | ---------------------------------------------------------------------------------- |
-| SPA            | React 19, TypeScript 6, Vite 8 (Rolldown), TailwindCSS 4, React Router 7           |
-| サーバー状態   | TanStack Query 5（楽観的更新、無限スクロール）                                     |
-| バリデーション | Zod 3                                                                              |
-| OAuth Proxy    | Cloudflare Workers, wrangler 4                                                     |
-| テスト         | Vitest 4, Testing Library 16, MSW 2, jsdom                                         |
-| ツール         | pnpm 10 (Catalogs), ESLint 9 (strictTypeChecked), Prettier 3, husky 9, lint-staged |
+| レイヤー       | 技術                                                          |
+| -------------- | ------------------------------------------------------------- |
+| SPA            | React 19, TypeScript 6, Vite 8, TailwindCSS 4, React Router 7 |
+| サーバー状態   | TanStack Query 5                                              |
+| バリデーション | Zod 3                                                         |
+| 認証基盤       | `gh-auth-bridge` (Cloudflare Workers, 別リポジトリ)           |
+| テスト         | Vitest 4, Testing Library 16, MSW 2, jsdom                    |
+| ツール         | pnpm 10, ESLint 9, Prettier 3, husky 9, lint-staged           |
 
 ## プロジェクト構造
 
 ```text
-ato/                          # pnpm workspace モノリポ
-├── apps/
-│   ├── spa/                  # React SPA (GitHub Pages)
-│   │   ├── src/
-│   │   │   ├── app/          # App.tsx, router, providers, pages/
-│   │   │   ├── features/
-│   │   │   │   ├── auth/     # hooks/, lib/, components/, types.ts
-│   │   │   │   └── actions/  # hooks/, lib/, components/, types.ts
-│   │   │   └── shared/       # lib/ (github-client, env, errors), hooks/, components/
-│   │   └── tests/            # 全テスト (app/, features/, shared/, factories.ts)
-│   └── oauth-proxy/          # Cloudflare Workers (~150行)
-│       └── src/index.ts
+ato/
+├── src/
+├── tests/
+├── public/
 ├── docs/
-│   ├── specs/                # 仕様書 01〜10
-│   └── guides/               # セットアップガイド 01〜04
-└── .github/workflows/        # ci.yml, deploy-spa.yml, deploy-oauth-proxy.yml
+└── .github/workflows/
 ```
-
-Feature-driven 構成: コードは種別（components, hooks）ではなくドメイン（auth, actions）で整理。
 
 ## 開発コマンド
 
 ```bash
-pnpm dev              # SPA + OAuth Proxy 同時起動 (concurrently)
-pnpm dev:spa          # SPA 開発サーバー (localhost:5173/ato)
-pnpm dev:proxy        # OAuth Proxy (localhost:8787)
-pnpm build            # SPA ビルド (tsc + vite)
-pnpm test             # 全テスト実行 (SPA + OAuth Proxy)
-pnpm test -- --coverage  # カバレッジ付き
-pnpm lint             # ESLint (SPA)
-pnpm typecheck        # TypeScript 型チェック (両パッケージ)
-pnpm format           # Prettier フォーマット
+pnpm dev              # SPA 開発サーバー (localhost:5173/ato)
+pnpm build            # SPA ビルド
+pnpm test             # SPA テスト
+pnpm lint             # ESLint
+pnpm typecheck        # TypeScript 型チェック
+pnpm format           # Prettier
 pnpm lint:md          # Markdownlint
 ```
 
-Vite dev server は `/auth/*` を自動的に localhost:8787 にプロキシする。
+`gh-auth-bridge` をローカルで併走する場合は、別 repo 側で `pnpm dev` を実行し、
+`.env` の `VITE_OAUTH_PROXY_URL` をその Worker URL に向ける。
 
-## アーキテクチャ
+## 認証フロー
 
-### 認証フロー
+1. SPA が popup で `gh-auth-bridge` の `/auth/login` を開く
+2. bridge が GitHub OAuth へリダイレクトし、callback で code を token に交換
+3. bridge が `postMessage` で SPA に token 情報を返す
+4. SPA が localStorage の共有 auth key に保存する
 
-1. SPA がポップアップで OAuth Proxy `/auth/login` を開く
-2. OAuth Proxy が state を HttpOnly Cookie に保存し GitHub OAuth へリダイレクト
-3. GitHub がコード付きで `/auth/callback` にリダイレクト
-4. OAuth Proxy が state 検証後コードを access_token に交換
-5. postMessage（origin 検証済み）で SPA にトークン送信
-6. SPA が localStorage (`ato:token`) に保存
+共有 auth key:
 
-### データフロー
+- `gh-auth-bridge:token`
+- `gh-auth-bridge:refresh-token`
+- `gh-auth-bridge:token-expires-at`
+- `gh-auth-bridge:refresh-expires-at`
 
-SPA が GitHub REST API (`api.github.com`) を直接呼び出す（CORS 対応）。プライベートリポジトリ `ato-datastore` に Issue としてやることを保存。初回作成時にリポジトリを自動作成。
+ATO 固有 key:
 
-### GitHub API エンドポイント
-
-```text
-GET    /repos/{login}/ato-datastore/issues          # やること一覧
-POST   /repos/{login}/ato-datastore/issues          # やること作成
-GET    /repos/{login}/ato-datastore/issues/{id}     # やること取得
-PATCH  /repos/{login}/ato-datastore/issues/{id}     # やること更新 (close/reopen)
-GET    /search/issues?q=repo:{login}/ato-datastore  # やること検索
-POST   /user/repos                                  # リポジトリ自動作成
-GET    /user                                        # ユーザー情報
-```
+- `ato:user`
+- `ato:repo-initialized`
+- `ato:action-order`
 
 ## 重要ファイル
 
-| 機能               | ファイル                                               |
-| ------------------ | ------------------------------------------------------ |
-| 認証コンテキスト   | `apps/spa/src/features/auth/hooks/use-auth.tsx`        |
-| OAuth クライアント | `apps/spa/src/features/auth/lib/auth-client.ts`        |
-| トークン保存       | `apps/spa/src/features/auth/lib/token-store.ts`        |
-| ルート保護         | `apps/spa/src/features/auth/components/AuthGuard.tsx`  |
-| Action CRUD hooks  | `apps/spa/src/features/actions/hooks/use-actions.ts`   |
-| 自動保存フック     | `apps/spa/src/features/actions/hooks/use-auto-save.ts` |
-| 検索フック         | `apps/spa/src/features/actions/hooks/use-search.ts`    |
-| GitHub API         | `apps/spa/src/features/actions/lib/github-api.ts`      |
-| 検索 API           | `apps/spa/src/features/actions/lib/search-api.ts`      |
-| Issue->Action 変換 | `apps/spa/src/features/actions/lib/issue-mapper.ts`    |
-| リポジトリ初期化   | `apps/spa/src/features/actions/lib/repo-init.ts`       |
-| バリデーション     | `apps/spa/src/features/actions/lib/validation.ts`      |
-| ページネーション   | `apps/spa/src/features/actions/lib/pagination.ts`      |
-| デバウンスフック   | `apps/spa/src/shared/hooks/use-debounce.ts`            |
-| 相対時間フック     | `apps/spa/src/shared/hooks/use-relative-time.ts`       |
-| 外クリックフック   | `apps/spa/src/shared/hooks/use-click-outside.ts`       |
-| HTTP クライアント  | `apps/spa/src/shared/lib/github-client.ts`             |
-| レート制限         | `apps/spa/src/shared/lib/rate-limit.ts`                |
-| エラーバナー       | `apps/spa/src/shared/components/ui/ErrorBanner.tsx`    |
-| 環境変数           | `apps/spa/src/shared/lib/env.ts`                       |
-| エラー型           | `apps/spa/src/shared/lib/errors.ts`                    |
-| Action ドメイン型  | `apps/spa/src/features/actions/types.ts`               |
-| Auth ドメイン型    | `apps/spa/src/features/auth/types.ts`                  |
-| ルーター           | `apps/spa/src/app/router.tsx`                          |
-| プロバイダー       | `apps/spa/src/app/providers.tsx`                       |
-| OAuth Proxy        | `apps/oauth-proxy/src/index.ts`                        |
-| OAuth Proxy テスト | `apps/oauth-proxy/src/__tests__/index.test.ts`         |
+| 機能               | ファイル                                     |
+| ------------------ | -------------------------------------------- |
+| 認証コンテキスト   | `src/features/auth/hooks/use-auth.tsx`       |
+| OAuth クライアント | `src/features/auth/lib/auth-client.ts`       |
+| トークン保存       | `src/features/auth/lib/token-store.ts`       |
+| ルート保護         | `src/features/auth/components/AuthGuard.tsx` |
+| GitHub API         | `src/shared/lib/github-client.ts`            |
+| 環境変数           | `src/shared/lib/env.ts`                      |
 
 ## 環境変数
 
-### SPA (`apps/spa/.env`)
+### SPA (`.env`)
 
 ```env
 VITE_OAUTH_PROXY_URL=http://localhost:8787
 ```
 
-### OAuth Proxy (`apps/oauth-proxy/.dev.vars`)
-
-```env
-GITHUB_CLIENT_ID=<GitHub OAuth App ID>
-GITHUB_CLIENT_SECRET=<GitHub OAuth App Secret>
-SPA_ORIGIN=http://localhost:5173
-```
-
-本番: `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` は Cloudflare Secrets、`SPA_ORIGIN` は wrangler.toml の vars。
+本番では GitHub Actions Variable `OAUTH_PROXY_URL` が `VITE_OAUTH_PROXY_URL` に注入される。
+この値は `gh-auth-bridge` の本番 Worker URL と一致させること。
 
 ## テスト
 
-- フレームワーク: Vitest 4 + jsdom + MSW 2
-- カバレッジ: v8 プロバイダー、80%+ 必須（OAuth Proxy は閾値強制）
-- テスト配置: `apps/spa/tests/**/*.test.{ts,tsx}`
-- セットアップ: `apps/spa/tests/setup.ts`
-- テストデータ: `apps/spa/tests/factories.ts`
+- Vitest 4 + jsdom + MSW 2
+- テスト配置: `tests/**/*.test.{ts,tsx}`
+- セットアップ: `tests/setup.ts`
 
 ## CI/CD
 
-1. **ci.yml**: PR/push to main -> Prettier, markdownlint, ESLint, tsc, Vitest (両パッケージ)
-2. **deploy-spa.yml**: CI 成功後 -> Vite ビルド -> GitHub Pages (`/ato/`)
-3. **deploy-oauth-proxy.yml**: CI 成功後 -> wrangler deploy -> Cloudflare Workers
+1. `ci.yml`: PR / push -> format, markdownlint, eslint, tsc, Vitest
+2. `deploy-spa.yml`: CI success 後に GitHub Pages へ deploy
+
+`gh-auth-bridge` の deploy は別リポジトリ側の workflow で管理する。
 
 ## コーディング規約
 
-- パスエイリアス: `@/*` -> `./src/*` (SPA)
-- Prettier: `printWidth: 150`
-- TypeScript 6: 全 strict オプション有効（`erasableSyntaxOnly`, `isolatedDeclarations`, `noUncheckedSideEffectImports` 含む）
-- ESLint: flat config + typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` + React Hooks/Refresh
-- pnpm Catalogs: 共有依存バージョンを `pnpm-workspace.yaml` で一元管理（`catalog:` プロトコル）
-- pre-commit: lint-staged（ESLint fix + Prettier + markdownlint）— SPA + oauth-proxy 両方
-- SPA ベースパス: `/ato/`（GitHub Pages サブパス）
-- `erasableSyntaxOnly`: enum/namespace/constructor parameter properties 禁止（Node.js 型ストリッピング互換）
-
-## 仕様書
-
-詳細な設計情報は `docs/specs/` を参照:
-
-| ファイル             | 内容                        |
-| -------------------- | --------------------------- |
-| 01-architecture.md   | システム設計、ADR           |
-| 02-monorepo-setup.md | ワークスペース設定          |
-| 03-oauth-proxy.md    | OAuth Proxy 実装詳細        |
-| 04-auth-flow.md      | 認証フロー詳細              |
-| 05-spa-design.md     | SPA 構造、ルーティング      |
-| 06-data-model.md     | データ型、スキーマ          |
-| 07-error-handling.md | エラーハンドリング戦略      |
-| 08-security.md       | セキュリティ対策            |
-| 09-ci-cd.md          | CI/CD パイプライン          |
-| 10-terminology.md    | 用語定義（やること/Action） |
+- `@/*` path alias
+- strict TypeScript
+- `erasableSyntaxOnly` 有効
+- localStorage の auth key は `gh-auth-bridge:` prefix を共有用途に限定し、
+  ATO 固有データには使わない
