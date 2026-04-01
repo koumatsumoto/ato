@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/features/auth/hooks/use-auth";
-import { getAuthLog, clearAuthLog } from "@/shared/lib/auth-log";
+import { useAuth, getAuthLog, clearAuthLog } from "@koumatsumoto/gh-auth-bridge-client/react";
 
 declare const __APP_VERSION__: string;
 

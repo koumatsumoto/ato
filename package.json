@@ -55,6 +55,7 @@
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
+    "@koumatsumoto/gh-auth-bridge-client": "^0.1.0",
     "@tanstack/react-query": "^5",
     "@uiball/loaders": "^1.3.1",
     "react": "^19",

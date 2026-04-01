@@ -19,7 +19,7 @@ vi.mock("@/features/actions/lib/draft-store", () => ({
 }));
 
 import { useAutoSave } from "@/features/actions/hooks/use-auto-save";
-import { NetworkError } from "@/shared/lib/errors";
+import { NetworkError } from "@koumatsumoto/gh-auth-bridge-client";
 
 interface MutateCallbacks {
   onSuccess: () => void;

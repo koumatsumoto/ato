@@ -1,10 +1,8 @@
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { vi } from "vitest";
-import { AuthProvider } from "@/features/auth/hooks/use-auth";
-import { AuthError } from "@/shared/lib/errors";
-import { clearToken } from "@/features/auth/lib/token-store";
-import { TOKEN_KEY, REPO_INITIALIZED_KEY } from "@/shared/lib/storage-keys";
+import { AuthProvider, AuthError, clearToken, TOKEN_KEY } from "@koumatsumoto/gh-auth-bridge-client/react";
+import { REPO_INITIALIZED_KEY } from "@/shared/lib/storage-keys";
 
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({

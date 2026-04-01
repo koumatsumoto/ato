@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@koumatsumoto/gh-auth-bridge-client/react";
 import { useOpenActions, useAction, useCreateAction, useCloseAction, useReopenAction, useUpdateAction } from "@/features/actions/hooks/use-actions";
 import { makeIssue } from "../../factories";
 import { createWrapper, setupAuthenticatedUser, mockFetchResponses } from "../../test-utils";

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { GitHubApiError } from "@/shared/lib/errors";
-import { TOKEN_KEY } from "@/shared/lib/storage-keys";
+import { GitHubApiError, TOKEN_KEY } from "@koumatsumoto/gh-auth-bridge-client";
 
 describe("fetchLabels", () => {
   const originalFetch = globalThis.fetch;

@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { Layout } from "@/shared/components/layout/Layout";
 
-vi.mock("@/features/auth/hooks/use-auth", () => ({
+vi.mock("@koumatsumoto/gh-auth-bridge-client/react", () => ({
   useAuth: () => ({
     state: { token: null, user: null, isLoading: false },
     login: vi.fn(),

@@ -1,4 +1,4 @@
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@koumatsumoto/gh-auth-bridge-client/react";
 
 export function useLogin(): string | null {
   const { state } = useAuth();

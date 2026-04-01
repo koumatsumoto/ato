@@ -1,6 +1,6 @@
 import type { Action, CreateActionInput, UpdateActionInput, GitHubIssue } from "@/features/actions/types";
 import { NotFoundError } from "@/shared/lib/errors";
-import { githubFetch, throwIfNotOk } from "@/shared/lib/github-client";
+import { githubFetch, throwIfNotOk } from "@koumatsumoto/gh-auth-bridge-client";
 import { mapIssueToAction } from "./issue-mapper";
 import { parseLinkHeader } from "./pagination";
 import { repoPath } from "./repo-constants";

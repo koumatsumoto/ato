@@ -14,6 +14,9 @@ importers:
       '@dnd-kit/sortable':
         specifier: ^10.0.0
         version: 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
+      '@koumatsumoto/gh-auth-bridge-client':
+        specifier: ^0.1.0
+        version: 0.1.0(@tanstack/react-query@5.90.20(react@19.2.4))(react@19.2.4)
       '@tanstack/react-query':
         specifier: ^5
         version: 5.90.20(react@19.2.4)
@@ -1106,6 +1109,18 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@koumatsumoto/gh-auth-bridge-client@0.1.0':
+    resolution: {integrity: sha512-tHB5smsFVrYpvyq2jIxO1MQqobRFH6gPpg1CFR0FofTWz++ZWrxF1FHFhp6O6HZogIEK8k+csIBeTb2pvqtNxg==}
+    engines: {node: '>=24.13.0'}
+    peerDependencies:
+      '@tanstack/react-query': ^5
+      react: ^19
+    peerDependenciesMeta:
+      '@tanstack/react-query':
+        optional: true
+      react:
+        optional: true
 
   '@mswjs/interceptors@0.41.2':
     resolution: {integrity: sha512-7G0Uf0yK3f2bjElBLGHIQzgRgMESczOMyYVasq1XK8P5HaXtlW4eQhz9MBL+TQILZLaruq+ClGId+hH0w4jvWw==}
@@ -4785,6 +4800,11 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@koumatsumoto/gh-auth-bridge-client@0.1.0(@tanstack/react-query@5.90.20(react@19.2.4))(react@19.2.4)':
+    optionalDependencies:
+      '@tanstack/react-query': 5.90.20(react@19.2.4)
+      react: 19.2.4
 
   '@mswjs/interceptors@0.41.2':
     dependencies:

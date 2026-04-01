@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { GitHubApiError, NotFoundError } from "@/shared/lib/errors";
-import { TOKEN_KEY } from "@/shared/lib/storage-keys";
+import { GitHubApiError, TOKEN_KEY } from "@koumatsumoto/gh-auth-bridge-client";
+import { NotFoundError } from "@/shared/lib/errors";
 import { makeIssue } from "../../factories";
 
 describe("github-api", () => {
