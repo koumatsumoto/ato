@@ -1,5 +1,5 @@
 import type { Action, GitHubSearchResult } from "@/features/actions/types";
-import { githubFetch, throwIfNotOk } from "@/shared/lib/github-client";
+import { githubFetch, throwIfNotOk } from "@koumatsumoto/gh-auth-bridge-client";
 import { mapIssueToAction } from "./issue-mapper";
 import { REPO_NAME } from "./repo-constants";
 

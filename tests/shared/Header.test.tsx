@@ -7,7 +7,7 @@ import { Header } from "@/shared/components/layout/Header";
 const mockLogout = vi.fn();
 let mockAuthState: { token: string | null; user: { login: string; id: number; avatarUrl: string } | null; isLoading: boolean };
 
-vi.mock("@/features/auth/hooks/use-auth", () => ({
+vi.mock("@koumatsumoto/gh-auth-bridge-client/react", () => ({
   useAuth: () => ({
     state: mockAuthState,
     login: vi.fn(),

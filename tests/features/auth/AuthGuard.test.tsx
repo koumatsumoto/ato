@@ -5,7 +5,7 @@ import { AuthGuard } from "@/features/auth/components/AuthGuard";
 
 let mockState: { token: string | null; user: { login: string; id: number; avatarUrl: string } | null; isLoading: boolean };
 
-vi.mock("@/features/auth/hooks/use-auth", () => ({
+vi.mock("@koumatsumoto/gh-auth-bridge-client/react", () => ({
   useAuth: () => ({
     state: mockState,
     login: vi.fn(),

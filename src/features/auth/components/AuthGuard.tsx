@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@koumatsumoto/gh-auth-bridge-client/react";
 import { saveRedirectPath } from "@/features/auth/lib/redirect-path";
 import { Layout } from "@/shared/components/layout/Layout";
 

@@ -1,46 +1,16 @@
-import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/features/auth/hooks/use-auth";
-import { AuthError, GitHubApiError, TokenRefreshError } from "@/shared/lib/errors";
-import { clearToken, clearAccessToken } from "@/features/auth/lib/token-store";
-import { authLog } from "@/shared/lib/auth-log";
-import "@/features/auth/lib/register-token-refresh";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { configure, setupTokenRefresh, createAuthQueryClient, AuthProvider, TOKEN_CLEARED_EVENT } from "@koumatsumoto/gh-auth-bridge-client/react";
+import { USER_KEY, REPO_INITIALIZED_KEY } from "@/shared/lib/storage-keys";
 
-const queryCache = new QueryCache({
-  onError: (error, query) => {
-    if (error instanceof TokenRefreshError) {
-      if (error.reason === "transient") {
-        authLog("global:auth-error", `query=${String(query.queryKey)} msg=${error.message} reason=transient`);
-        clearAccessToken();
-      } else {
-        authLog("global:auth-error", `query=${String(query.queryKey)} msg=${error.message} reason=invalid_grant`);
-        clearToken();
-      }
-      return;
-    }
-    if (error instanceof AuthError) {
-      authLog("global:auth-error", `query=${String(query.queryKey)} msg=${error.message}`);
-      clearToken();
-    }
-  },
-});
+const proxyUrl = import.meta.env["VITE_OAUTH_PROXY_URL"] as string | undefined;
+if (!proxyUrl) throw new Error("VITE_OAUTH_PROXY_URL environment variable is not set");
+configure({ proxyUrl });
+setupTokenRefresh();
+const queryClient = createAuthQueryClient();
 
-const queryClient = new QueryClient({
-  queryCache,
-  defaultOptions: {
-    queries: {
-      retry: (failureCount, error) => {
-        if (error instanceof AuthError) return false;
-        if (error instanceof GitHubApiError && [403, 404, 422].includes(error.status)) {
-          return false;
-        }
-        return failureCount < 2;
-      },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-    },
-    mutations: {
-      retry: false,
-    },
-  },
+window.addEventListener(TOKEN_CLEARED_EVENT, () => {
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(REPO_INITIALIZED_KEY);
 });
 
 export function AppProviders({ children }: { children: React.ReactNode }): React.JSX.Element {

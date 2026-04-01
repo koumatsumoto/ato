@@ -21,7 +21,7 @@ vi.mock("@/features/actions/hooks/use-actions", () => ({
   }),
 }));
 
-vi.mock("@/features/auth/hooks/use-auth", () => ({
+vi.mock("@koumatsumoto/gh-auth-bridge-client/react", () => ({
   useAuth: () => ({
     state: { token: "token", user: { login: "user", id: 1, avatarUrl: "" }, isLoading: false },
     login: vi.fn(),

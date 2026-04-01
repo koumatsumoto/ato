@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Link } from "react-router";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@koumatsumoto/gh-auth-bridge-client/react";
 import { useClickOutside } from "@/shared/hooks/use-click-outside";
 
 export function Header(): React.JSX.Element {

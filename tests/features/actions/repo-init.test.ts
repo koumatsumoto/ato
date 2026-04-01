@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { GitHubApiError, RepoNotConfiguredError } from "@/shared/lib/errors";
+import { GitHubApiError } from "@koumatsumoto/gh-auth-bridge-client";
+import { RepoNotConfiguredError } from "@/shared/lib/errors";
 
 describe("ensureRepository", () => {
   const originalFetch = globalThis.fetch;

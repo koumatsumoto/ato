@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { TOKEN_KEY } from "@/shared/lib/storage-keys";
+import { TOKEN_KEY } from "@koumatsumoto/gh-auth-bridge-client";
 
 describe("searchActions", () => {
   const originalFetch = globalThis.fetch;

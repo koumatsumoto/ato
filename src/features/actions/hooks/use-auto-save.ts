@@ -3,7 +3,7 @@ import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useUpdateAction } from "./use-actions";
 import { updateActionSchema } from "@/features/actions/lib/validation";
 import { saveDraft, removeDraft } from "@/features/actions/lib/draft-store";
-import { NetworkError } from "@/shared/lib/errors";
+import { NetworkError } from "@koumatsumoto/gh-auth-bridge-client";
 
 interface UseAutoSaveParams {
   readonly id: number;
