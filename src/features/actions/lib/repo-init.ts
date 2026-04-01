@@ -1,6 +1,5 @@
-import { GitHubApiError } from "@koumatsumoto/gh-auth-bridge-client";
+import { GitHubApiError, githubFetch } from "@koumatsumoto/gh-auth-bridge-client";
 import { RepoNotConfiguredError } from "@/shared/lib/errors";
-import { githubFetch } from "@koumatsumoto/gh-auth-bridge-client";
 import { REPO_INITIALIZED_KEY } from "@/shared/lib/storage-keys";
 
 export async function ensureRepository(login: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth, getAuthLog, clearAuthLog } from "@koumatsumoto/gh-auth-bridge-client/react";
+import { useAuth, getAuthLog, clearAuthLog, TOKEN_KEY } from "@koumatsumoto/gh-auth-bridge-client/react";
 
 declare const __APP_VERSION__: string;
 
@@ -8,7 +8,7 @@ export function DiagnosticsPage(): React.JSX.Element {
   const [, setRefreshKey] = useState(0);
 
   const logs = getAuthLog();
-  const hasTokenInStorage = localStorage.getItem("gh-auth-bridge:token") !== null;
+  const hasTokenInStorage = localStorage.getItem(TOKEN_KEY) !== null;
   const hasTokenInState = state.token !== null;
 
   const handleRefresh = () => {

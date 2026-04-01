@@ -1,3 +1,3 @@
-export const USER_KEY = "ato:user";
-export const REPO_INITIALIZED_KEY = "ato:repo-initialized";
-export const ACTION_ORDER_KEY = "ato:action-order";
+export const USER_KEY = "ato:user" as const;
+export const REPO_INITIALIZED_KEY = "ato:repo-initialized" as const;
+export const ACTION_ORDER_KEY = "ato:action-order" as const;
