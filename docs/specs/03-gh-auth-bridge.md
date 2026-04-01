@@ -2,6 +2,14 @@
 
 ATO は外部認証基盤 `gh-auth-bridge` に依存する。
 
+## Client SDK
+
+認証ロジックは `@koumatsumoto/gh-auth-bridge-client` パッケージを利用する。
+popup login、token 管理、GitHub API 呼び出し（自動 refresh 付き）、
+React 統合（AuthProvider, useAuth）を SDK が提供する。
+
+**仕様・API リファレンス・セットアップ手順**: <https://github.com/koumatsumoto/gh-auth-bridge>
+
 ## 利用する endpoint
 
 - `GET /auth/login`
