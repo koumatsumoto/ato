@@ -54,22 +54,24 @@ describe("use-actions hooks", () => {
   });
 
   describe("useCreateAction", () => {
-    it("creates an action with optimistic update then refetches from server", async () => {
+    it("keeps the created action visible even when the server list lags behind the write", async () => {
+      // GitHub's issue-list endpoint is eventually consistent: a refetch right
+      // after creation may not include the new issue yet. The optimistic item is
+      // reconciled from the authoritative POST response and must not disappear,
+      // even if a subsequent list fetch would omit it.
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 1, title: "Existing" })];
       const created = makeIssue({ number: 10, title: "New action" });
-      const refreshedIssues = [makeIssue({ number: 10, title: "New action" }), makeIssue({ number: 1, title: "Existing" })];
+      const laggingList = [makeIssue({ number: 1, title: "Existing" })]; // #10 not indexed yet
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: created, status: 201 }, { body: refreshedIssues });
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: created, status: 201 }, { body: laggingList });
 
       const wrapper = createWrapper();
       const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
 
       await waitFor(() => {
-        expect(actionsResult.current.data).toBeDefined();
+        expect(actionsResult.current.data?.actions).toHaveLength(1);
       });
-
-      expect(actionsResult.current.data?.actions).toHaveLength(1);
 
       const { result: createResult } = renderHook(() => useCreateAction(), { wrapper });
 
@@ -81,11 +83,12 @@ describe("use-actions hooks", () => {
         expect(createResult.current.isSuccess).toBe(true);
       });
 
-      // After server refetch, both items exist with real positive IDs
+      // The created item is reconciled to its real positive ID and stays in place.
       await waitFor(() => {
         const actions = actionsResult.current.data?.actions ?? [];
         expect(actions).toHaveLength(2);
-        expect(actions.every((t) => t.id > 0)).toBe(true);
+        expect(actions.find((a) => a.id === 10)?.title).toBe("New action");
+        expect(actions.every((a) => a.id > 0)).toBe(true);
       });
     });
 
@@ -128,13 +131,16 @@ describe("use-actions hooks", () => {
   });
 
   describe("useCloseAction", () => {
-    it("closes an action with optimistic removal then refetches", async () => {
+    it("keeps a closed action removed even when the server list still reports it open", async () => {
+      // The optimistic removal is authoritative for the open list; GitHub's list
+      // endpoint lags writes and may still report the just-closed item as open, so
+      // the open list must not be refetched-and-resurrected on close.
       setupAuthenticatedUser();
       const issues = [makeIssue({ number: 1 }), makeIssue({ number: 2 })];
       const closed = makeIssue({ number: 1, state: "closed", closed_at: "2026-01-02T00:00:00Z" });
-      const refreshedIssues = [makeIssue({ number: 2 })];
+      const laggingList = [makeIssue({ number: 1 }), makeIssue({ number: 2 })]; // #1 still reported open
 
-      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: closed }, { body: refreshedIssues });
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: issues }, { body: closed }, { body: laggingList });
 
       const wrapper = createWrapper();
       const { result: actionsResult } = renderHook(() => useOpenActions(), { wrapper });
@@ -160,8 +166,10 @@ describe("use-actions hooks", () => {
         expect(closeResult.current.isSuccess).toBe(true);
       });
 
-      // After server refetch, item remains removed
-      expect(actionsResult.current.data?.actions).toHaveLength(1);
+      // The closed item stays removed and is not resurrected by a lagging refetch.
+      const actions = actionsResult.current.data?.actions ?? [];
+      expect(actions).toHaveLength(1);
+      expect(actions.some((a) => a.id === 1)).toBe(false);
     });
 
     it("rolls back optimistic removal on close error", async () => {
