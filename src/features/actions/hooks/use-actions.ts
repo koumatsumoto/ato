@@ -90,8 +90,22 @@ export function useCreateAction(): UseMutationResult<Action, Error, CreateAction
         queryClient.setQueryData(["actions", "open"], context.previous);
       }
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["actions"] });
+    onSuccess: (created, _input, context) => {
+      // Replace the optimistic placeholder with the authoritative item from the
+      // POST response, which is the source of truth for the new action. The open
+      // list is not refetched here: GitHub's issue-list endpoint is eventually
+      // consistent, so a refetch right after the write can omit the new issue and
+      // drop it from the list. The next mount/focus refetch reconciles with the
+      // server once it has caught up.
+      queryClient.setQueryData<FetchActionsResult>(["actions", "open"], (old) => {
+        if (!old) return { actions: [created], hasNextPage: false, nextPage: null };
+        return {
+          ...old,
+          actions: old.actions.some((a) => a.id === context.tempId)
+            ? old.actions.map((a) => (a.id === context.tempId ? created : a))
+            : [created, ...old.actions],
+        };
+      });
     },
   });
 }
@@ -121,8 +135,15 @@ export function useCloseAction(): UseMutationResult<Action, Error, number, { pre
         queryClient.setQueryData(["actions", "open"], context.previous);
       }
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["actions"] });
+    onSettled: (data, _err, id) => {
+      // Reflect the change in the detail cache from the authoritative response and
+      // refresh the sibling views (closed list, any active search). The open list
+      // is deliberately not refetched: its optimistic removal is authoritative and
+      // GitHub's issue-list endpoint lags writes, so an immediate refetch could
+      // momentarily resurrect the just-closed item.
+      if (data) queryClient.setQueryData(["actions", id], data);
+      void queryClient.invalidateQueries({ queryKey: ["actions", "closed"] });
+      void queryClient.invalidateQueries({ queryKey: ["actions", "search"] });
     },
   });
 }
