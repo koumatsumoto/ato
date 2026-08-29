@@ -14,7 +14,7 @@ vi.mock("react-router", async () => {
   };
 });
 
-vi.mock("@/features/actions/hooks/use-actions", () => ({
+vi.mock("@/features/actions/hooks/use-create-action", () => ({
   useCreateAction: () => ({
     mutate: mockMutate,
     isPending: false,

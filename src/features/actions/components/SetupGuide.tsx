@@ -10,7 +10,7 @@ export function SetupGuide(): React.JSX.Element {
   };
 
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
+    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
       <h2 className="mb-4 text-lg font-semibold text-blue-900">初回セットアップ</h2>
       <p className="mb-4 text-sm text-blue-800">ATO を使用するには、以下の手順でリポジトリとアプリの設定を行ってください。</p>
       <ol className="mb-6 space-y-4 text-sm text-blue-900">

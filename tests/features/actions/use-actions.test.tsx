@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAuth } from "@koumatsumoto/gh-auth-bridge-client/react";
-import { useOpenActions, useAction, useCreateAction, useCloseAction, useReopenAction, useUpdateAction } from "@/features/actions/hooks/use-actions";
+import { useOpenActions, useAction, useCloseAction, useReopenAction, useUpdateAction } from "@/features/actions/hooks/use-actions";
+import { useCreateAction } from "@/features/actions/hooks/use-create-action";
 import { makeIssue } from "../../factories";
 import { createWrapper, setupAuthenticatedUser, mockFetchResponses } from "../../test-utils";
 
@@ -54,6 +55,49 @@ describe("use-actions hooks", () => {
   });
 
   describe("useCreateAction", () => {
+    it("checks repository readiness before creating when no list has been fetched", async () => {
+      setupAuthenticatedUser();
+      localStorage.removeItem("ato:repo-initialized");
+      const created = makeIssue({ number: 10, title: "Direct create" });
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: {} }, { body: created, status: 201 });
+
+      const { result } = renderHook(() => ({ auth: useAuth(), create: useCreateAction() }), { wrapper: createWrapper() });
+      await waitFor(() => {
+        expect(result.current.auth.state.user?.login).toBe("testuser");
+      });
+
+      act(() => {
+        result.current.create.mutate({ title: "Direct create" });
+      });
+
+      await waitFor(() => {
+        expect(result.current.create.isSuccess).toBe(true);
+      });
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+      expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/repos/testuser/ato-datastore");
+      expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/repos/testuser/ato-datastore/issues");
+    });
+
+    it("does not create an issue when repository readiness fails", async () => {
+      setupAuthenticatedUser();
+      localStorage.removeItem("ato:repo-initialized");
+      globalThis.fetch = mockFetchResponses({ body: userResponse }, { body: { message: "Not Found" }, status: 404 });
+
+      const { result } = renderHook(() => ({ auth: useAuth(), create: useCreateAction() }), { wrapper: createWrapper() });
+      await waitFor(() => {
+        expect(result.current.auth.state.user?.login).toBe("testuser");
+      });
+      act(() => {
+        result.current.create.mutate({ title: "Keep as draft" });
+      });
+
+      await waitFor(() => {
+        expect(result.current.create.isError).toBe(true);
+      });
+      expect(result.current.create.error?.name).toBe("RepoNotConfiguredError");
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
     it("keeps the created action visible even when the server list lags behind the write", async () => {
       // GitHub's issue-list endpoint is eventually consistent: a refetch right
       // after creation may not include the new issue yet. The optimistic item is

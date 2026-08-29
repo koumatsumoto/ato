@@ -6,7 +6,7 @@
   "scope": "/ato/",
   "display": "standalone",
   "background_color": "#85cfae",
-  "theme_color": "#ffffff",
+  "theme_color": "#85cfae",
   "share_target": {
     "action": "/ato/share",
     "method": "GET",

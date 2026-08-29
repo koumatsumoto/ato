@@ -9,6 +9,13 @@
   --color-completed: #85d5b2;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #85cfae;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -10,13 +10,106 @@
     <link rel="icon" href="/favicon.ico" />
     <link rel="manifest" href="/ato/manifest.json" />
     <link rel="apple-touch-icon" href="/ato/icon-192x192.png" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#85cfae" />
+    <meta name="description" content="あとでやることを、思いついた瞬間にすぐ残せるメモアプリ" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>ATO</title>
+    <style>
+      .boot-shell {
+        min-height: 100vh;
+        background: #85cfae;
+        color: #022c22;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .boot-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+        background: rgba(255, 255, 255, 0.8);
+      }
+      .boot-header-inner {
+        display: flex;
+        max-width: 672px;
+        margin: auto;
+        align-items: center;
+        gap: 8px;
+        font-size: 18px;
+      }
+      .boot-main {
+        max-width: 672px;
+        margin: auto;
+        padding: 20px 16px;
+      }
+      .boot-composer {
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 45px rgba(6, 78, 59, 0.12);
+      }
+      .boot-composer span {
+        color: #047857;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+      }
+      .boot-composer h2 {
+        margin: 4px 0 0;
+        font-size: 20px;
+      }
+      .boot-composer p {
+        margin: 4px 0 0;
+        color: rgba(2, 44, 34, 0.55);
+        font-size: 14px;
+      }
+      .boot-input {
+        margin-top: 20px;
+        padding: 14px 16px;
+        border: 1px solid rgba(6, 78, 59, 0.15);
+        border-radius: 16px;
+        background: rgba(236, 253, 245, 0.65);
+        color: rgba(2, 44, 34, 0.3);
+      }
+      .boot-actions {
+        display: flex;
+        min-height: 44px;
+        margin-top: 12px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .boot-actions i {
+        width: 42px;
+        height: 42px;
+        border: 1px solid rgba(6, 78, 59, 0.15);
+        border-radius: 999px;
+      }
+      .boot-actions b {
+        padding: 11px 20px;
+        border-radius: 999px;
+        background: rgba(6, 78, 59, 0.2);
+        color: rgba(2, 44, 34, 0.4);
+        font-size: 14px;
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin: 0; background: #85cfae">
+    <div id="root">
+      <div class="boot-shell" aria-hidden="true">
+        <div class="boot-header">
+          <div class="boot-header-inner"><img src="/ato/logo.png" alt="" width="24" height="24" /><strong>ATO</strong></div>
+        </div>
+        <main class="boot-main">
+          <div class="boot-composer">
+            <span>すぐに残す</span>
+            <h2>何をあとでやる？</h2>
+            <p>思いついた言葉のままで大丈夫です。あとから編集できます。</p>
+            <div class="boot-input">例：電球を買う</div>
+            <div class="boot-actions"><i></i><b>追加</b></div>
+          </div>
+        </main>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

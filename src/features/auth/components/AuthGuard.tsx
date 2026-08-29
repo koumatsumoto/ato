@@ -3,35 +3,26 @@ import { useAuth } from "@koumatsumoto/gh-auth-bridge-client/react";
 import { saveRedirectPath } from "@/features/auth/lib/redirect-path";
 import { Layout } from "@/shared/components/layout/Layout";
 
-function PageSkeleton() {
-  return (
-    <div className="bg-gray-50" style={{ minHeight: "var(--app-height)" }}>
-      <div className="bg-white px-4 py-3 shadow">
-        <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <div className="h-6 w-12 animate-pulse rounded bg-gray-200" />
-          <div className="h-7 w-7 animate-pulse rounded-full bg-gray-200" />
-        </div>
-      </div>
-      <div className="mx-auto max-w-2xl px-4 py-6">
-        <div className="space-y-3">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-200" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function AuthGuard(): React.JSX.Element {
   const { state } = useAuth();
   const location = useLocation();
 
-  if (state.isLoading) return <PageSkeleton />;
-
   if (!state.token) {
     saveRedirectPath(`${location.pathname}${location.search}`);
     return <Navigate to="/login" replace />;
+  }
+
+  // Only TOP can safely render before identity is ready. Share and detail
+  // routes perform one-shot or identity-dependent work on mount, so mounting
+  // them early would turn a normal cold start into a permanent error state.
+  if (state.isLoading && location.pathname !== "/") {
+    return (
+      <Layout>
+        <div role="status" aria-label="認証情報を確認中" className="flex min-h-40 items-center justify-center text-sm text-emerald-950/75">
+          認証情報を確認しています…
+        </div>
+      </Layout>
+    );
   }
 
   return (
