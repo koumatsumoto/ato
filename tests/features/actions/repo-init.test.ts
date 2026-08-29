@@ -56,4 +56,23 @@ describe("ensureRepository", () => {
     const ensureRepository = await loadEnsureRepository();
     await expect(ensureRepository("testuser")).rejects.toThrow(GitHubApiError);
   });
+
+  it("shares one in-flight repository check between concurrent callers", async () => {
+    let resolveResponse: ((response: Response) => void) | undefined;
+    globalThis.fetch = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+
+    const ensureRepository = await loadEnsureRepository();
+    const first = ensureRepository("testuser");
+    const second = ensureRepository("testuser");
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    resolveResponse?.(new Response("{}", { status: 200 }));
+    await Promise.all([first, second]);
+    expect(localStorage.getItem("ato:repo-initialized")).toBe("true");
+  });
 });

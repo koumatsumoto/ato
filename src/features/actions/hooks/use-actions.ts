@@ -1,9 +1,9 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, skipToken } from "@tanstack/react-query";
 import type { UseQueryResult, UseInfiniteQueryResult, UseMutationResult, InfiniteData } from "@tanstack/react-query";
-import type { Action, CreateActionInput, UpdateActionInput } from "@/features/actions/types";
+import type { Action, UpdateActionInput } from "@/features/actions/types";
 import { useLogin } from "./use-login";
 import { ensureRepository } from "@/features/actions/lib/repo-init";
-import { fetchActions, createAction, fetchAction, updateAction, closeAction, reopenAction } from "@/features/actions/lib/github-api";
+import { fetchActions, fetchAction, updateAction, closeAction, reopenAction } from "@/features/actions/lib/github-api";
 import type { FetchActionsResult } from "@/features/actions/lib/github-api";
 
 export function useOpenActions(): UseQueryResult<FetchActionsResult> {
@@ -46,67 +46,6 @@ export function useAction(id: number): UseQueryResult<Action> {
   return useQuery({
     queryKey: ["actions", id],
     queryFn: login ? () => fetchAction(login, id) : skipToken,
-  });
-}
-
-let nextTempId = -1;
-
-export function useCreateAction(): UseMutationResult<Action, Error, CreateActionInput, { previous: FetchActionsResult | undefined; tempId: number }> {
-  const queryClient = useQueryClient();
-  const login = useLogin();
-  return useMutation({
-    mutationFn: (input: CreateActionInput) => {
-      if (!login) throw new Error("Not authenticated");
-      return createAction(login, input);
-    },
-    onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: ["actions", "open"] });
-      const previous = queryClient.getQueryData<FetchActionsResult>(["actions", "open"]);
-      const tempId = nextTempId--;
-
-      queryClient.setQueryData<FetchActionsResult>(["actions", "open"], (old) => ({
-        hasNextPage: old?.hasNextPage ?? false,
-        nextPage: old?.nextPage ?? null,
-        actions: [
-          {
-            id: tempId,
-            title: input.title,
-            memo: input.memo ?? "",
-            state: "open" as const,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            closedAt: null,
-            url: "",
-            labels: input.labels ?? [],
-          },
-          ...(old?.actions ?? []),
-        ],
-      }));
-
-      return { previous, tempId };
-    },
-    onError: (_err, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["actions", "open"], context.previous);
-      }
-    },
-    onSuccess: (created, _input, context) => {
-      // Replace the optimistic placeholder with the authoritative item from the
-      // POST response, which is the source of truth for the new action. The open
-      // list is not refetched here: GitHub's issue-list endpoint is eventually
-      // consistent, so a refetch right after the write can omit the new issue and
-      // drop it from the list. The next mount/focus refetch reconciles with the
-      // server once it has caught up.
-      queryClient.setQueryData<FetchActionsResult>(["actions", "open"], (old) => {
-        if (!old) return { actions: [created], hasNextPage: false, nextPage: null };
-        return {
-          ...old,
-          actions: old.actions.some((a) => a.id === context.tempId)
-            ? old.actions.map((a) => (a.id === context.tempId ? created : a))
-            : [created, ...old.actions],
-        };
-      });
-    },
   });
 }
 

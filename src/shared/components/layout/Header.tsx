@@ -14,9 +14,12 @@ export function Header(): React.JSX.Element {
   useClickOutside(menuRef, handleCloseMenu);
 
   return (
-    <header className="bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+    <header
+      className="border-b border-white/55 bg-white/80 px-4 py-3 shadow-[0_2px_12px_rgba(6,78,59,0.08)] backdrop-blur-md"
+      style={{ paddingTop: "calc(0.75rem + var(--sat))" }}
+    >
       <div className="mx-auto flex max-w-2xl items-center justify-between">
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-lg font-bold tracking-tight text-emerald-950">
           <Link to="/" className="flex items-center gap-2">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" className="h-6 w-6" />
             ATO

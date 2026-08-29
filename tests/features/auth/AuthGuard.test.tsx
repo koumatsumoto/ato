@@ -20,16 +20,51 @@ describe("AuthGuard", () => {
     mockState = { token: null, user: null, isLoading: false };
   });
 
-  it("shows loading skeleton when loading", () => {
+  it("renders child routes while identity is loading when a token exists", () => {
     mockState = { token: "t", user: null, isLoading: true };
 
     render(
-      <MemoryRouter>
-        <AuthGuard />
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<AuthGuard />}>
+            <Route index element={<div>Composer route</div>} />
+          </Route>
+        </Routes>
       </MemoryRouter>,
     );
 
-    expect(document.querySelector(".animate-pulse")).toBeTruthy();
+    expect(screen.getByText("Composer route")).toBeInTheDocument();
+    expect(screen.getByText("ATO")).toBeInTheDocument();
+  });
+
+  it("waits for identity before mounting a non-TOP route", () => {
+    mockState = { token: "t", user: null, isLoading: true };
+
+    const view = render(
+      <MemoryRouter initialEntries={["/share"]}>
+        <Routes>
+          <Route element={<AuthGuard />}>
+            <Route path="/share" element={<div>Share side effect</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("status", { name: "認証情報を確認中" })).toBeInTheDocument();
+    expect(screen.queryByText("Share side effect")).not.toBeInTheDocument();
+
+    mockState = { token: "t", user: { login: "user", id: 1, avatarUrl: "https://example.com/avatar" }, isLoading: false };
+    view.rerender(
+      <MemoryRouter initialEntries={["/share"]}>
+        <Routes>
+          <Route element={<AuthGuard />}>
+            <Route path="/share" element={<div>Share side effect</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Share side effect")).toBeInTheDocument();
   });
 
   it("redirects to /login when no token", () => {
